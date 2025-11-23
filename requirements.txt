@@ -1,0 +1,15 @@
+Flask==2.3.3
+Flask-CORS==4.0.0
+mysql-connector-python==8.1.0
+python-magic==0.4.27
+python-magic-bin==0.4.14
+pdf2image==1.16.3
+Pillow==10.0.1
+python-pptx==0.6.21
+reportlab==4.0.4
+docx2pdf==0.1.8
+comtypes==1.1.14
+python-docx==1.1.0
+pandas==2.0.3
+openpyxl==3.1.2
+pdfplumber==0.10.3

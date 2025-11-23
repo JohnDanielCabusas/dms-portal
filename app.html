@@ -686,6 +686,7 @@
         justify-content: center;
         z-index: 999;
         backdrop-filter: blur(4px);
+        padding: 20px; /* ensure modal doesn't touch viewport edges */
       }
 
       .modal {
@@ -696,6 +697,7 @@
         border-radius: 16px;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         color: var(--text);
+        box-sizing: border-box;
       }
 
       .modal h3 {
@@ -1377,6 +1379,9 @@
         max-height: 90vh;
         display: flex;
         flex-direction: column;
+        padding: 20px;
+        background: var(--card);
+        border-radius: 10px;
       }
 
       .file-preview-header {
@@ -1467,7 +1472,10 @@
         display: flex;
         gap: 12px;
         margin-top: 20px;
-        margin-left: 130px;
+        justify-content: flex-end;
+        width: 100%;
+        padding-top: 8px;
+        flex-wrap: wrap;
       }
 
       .back-button {
@@ -3555,70 +3563,67 @@ async function openFilePreview(fileId) {
     }
 
     openModal(`
-        <div class="file-preview-modal">
-            <div class="file-preview-header">
-                <div style="display:flex;align-items:center;gap:12px">
-                    <div class="file-preview-icon">${fileIcon(file.original_name || file.name)}</div>
-                    <div>
-                        <h3 style="margin:0">${file.original_name || file.name}</h3>
-                        <div class="small-muted">${file.type.toUpperCase()} • ${(file.size / 1024) | 0} KB</div>
-                    </div>
-                </div>
-                <div style="display:flex;gap:8px">
-                    <button class="icon-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
-                </div>
+        <div class="file-preview-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="file-preview-icon">${fileIcon(file.original_name || file.name)}</div>
+            <div>
+              <h3 style="margin:0">${file.original_name || file.name}</h3>
+              <div class="small-muted">${file.type.toUpperCase()} • ${(file.size / 1024) | 0} KB</div>
             </div>
-            
-            <div class="file-preview-content">
-                ${previewContent}
-            </div>
-            
-            <div class="file-preview-meta">
-    <div class="meta-item">
-        <div class="meta-label">Owner</div>
-        <div class="meta-value">${owner.name}</div>
-    </div>
-    <div class="meta-item">
-        <div class="meta-label">Uploaded</div>
-        <div class="meta-value">${new Date(file.created_at).toLocaleString()}</div>
-    </div>
-    <div class="meta-item">
-        <div class="meta-label">File Size</div>
-        <div class="meta-value">${(file.size / 1024) | 0} KB</div>
-    </div>
-    <div class="meta-item">
-        <div class="meta-label">File Type</div>
-        <div class="meta-value">${file.type.toUpperCase()}</div>
-    </div>
-    <div class="meta-item">
-        <div class="meta-label">Category</div>
-        <div class="meta-value">${file.document_type || "Not categorized"}</div>
-    </div>
-    <div class="meta-item">
-        <div class="meta-label">Status</div>
-        <div class="meta-value">
-            <span class="badge ${file.shared ? "badge-success" : ""}">
-                ${file.shared ? "Shared" : "Private"}
-            </span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="icon-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
         </div>
-    </div>
-</div>
-
             
-            <div class="file-preview-actions">
-                <button onclick="downloadFile(${file.file_id})">
-                    <i class="fa-solid fa-download"></i> Download
-                </button>
-                <button class="btn-secondary" onclick="toggleShare(${file.file_id}); closeModal();">
-                    ${file.shared ? '<i class="fa-solid fa-link-slash"></i> Unshare' : '<i class="fa-solid fa-link"></i> Share'}
-                </button>
-                <button class="btn-secondary" onclick="openAddToWorkspaceModal(${file.file_id}); closeModal();">
-                    <i class="fa-solid fa-layer-group"></i> Add to Workspace
-                </button>
-                <button class="btn-secondary" onclick="moveToArchive(${file.file_id}); closeModal();">
-                    <i class="fa-solid fa-box-archive"></i> Move to Archive
-                </button>
-            </div>
+        <div class="file-preview-content">
+          ${previewContent}
+        </div>
+            
+        <div class="file-preview-meta">
+    <div class="meta-item">
+      <div class="meta-label">Owner</div>
+      <div class="meta-value">${owner.name}</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Uploaded</div>
+      <div class="meta-value">${new Date(file.created_at).toLocaleString()}</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">File Size</div>
+      <div class="meta-value">${(file.size / 1024) | 0} KB</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">File Type</div>
+      <div class="meta-value">${file.type.toUpperCase()}</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Category</div>
+      <div class="meta-value">${file.document_type || "Not categorized"}</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Status</div>
+      <div class="meta-value">
+        <span class="badge ${file.shared ? "badge-success" : ""}">
+          ${file.shared ? "Shared" : "Private"}
+        </span>
+      </div>
+    </div>
+  </div>
+
+        <div class="file-preview-actions">
+          <button onclick="downloadFile(${file.file_id})">
+            <i class="fa-solid fa-download"></i> Download
+          </button>
+          <button class="btn-secondary" onclick="toggleShare(${file.file_id}); closeModal();">
+            ${file.shared ? '<i class="fa-solid fa-link-slash"></i> Unshare' : '<i class="fa-solid fa-link"></i> Share'}
+          </button>
+          <button class="btn-secondary" onclick="openAddToWorkspaceModal(${file.file_id}); closeModal();">
+            <i class="fa-solid fa-layer-group"></i> Add to Workspace
+          </button>
+          <button class="btn-secondary" onclick="moveToArchive(${file.file_id}); closeModal();">
+            <i class="fa-solid fa-box-archive"></i> Move to Archive
+          </button>
         </div>
     `, "file-preview-modal");
 }

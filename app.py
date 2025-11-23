@@ -1350,53 +1350,13 @@ def calculate_confidence(text, document_type):
         return "Low"
 def get_unique_filename_for_archive(original_name, user_id):
     """Generate unique filename when moving to archive"""
-    base_name = original_filename.rsplit('.', 1)[0]
-    extension = original_filename.rsplit('.', 1)[1].lower()
-    
-    query = "SELECT name FROM files WHERE user_id = %s AND status = 'archived' AND name LIKE %s"
-    connection = DatabaseConfig.get_connection()
-    cursor = connection.cursor(dictionary=True)
-    
-    like_pattern = f"{base_name}%.{extension}"
-    cursor.execute(query, (user_id, like_pattern))
-    existing_files = cursor.fetchall()
-    cursor.close()
-    connection.close()
-    
-    final_filename = original_name
-    counter = 1
-    
-    existing_names = [f['name'] for f in existing_files]
-    while final_filename in existing_names:
-        final_filename = f"{base_name} ({counter}).{extension}"
-        counter += 1
-    
-    return final_filename
+    # Removed: not used in current codebase. Keep placeholder for future archive-restore logic.
+    return original_name
 
 def get_unique_filename_for_restore(original_name, user_id):
     """Generate unique filename when restoring from archive"""
-    base_name = original_filename.rsplit('.', 1)[0]
-    extension = original_filename.rsplit('.', 1)[1].lower()
-    
-    query = "SELECT name FROM files WHERE user_id = %s AND status = 'active' AND name LIKE %s"
-    connection = DatabaseConfig.get_connection()
-    cursor = connection.cursor(dictionary=True)
-    
-    like_pattern = f"{base_name}%.{extension}"
-    cursor.execute(query, (user_id, like_pattern))
-    existing_files = cursor.fetchall()
-    cursor.close()
-    connection.close()
-    
-    final_filename = original_name
-    counter = 1
-    
-    existing_names = [f['name'] for f in existing_files]
-    while final_filename in existing_names:
-        final_filename = f"{base_name} ({counter}).{extension}"
-        counter += 1
-    
-    return final_filename
+    # Removed: not used in current codebase. Keep placeholder for future archive-restore logic.
+    return original_name
 
 # Database API Routes
 

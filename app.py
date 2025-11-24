@@ -1,3 +1,6 @@
+def hash_file_path(file_path):
+    """Return a SHA-256 hash of the file path as a hex string."""
+    return hashlib.sha256(file_path.encode('utf-8')).hexdigest()
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
@@ -23,7 +26,14 @@ CORS(app)
 
 # Define UPLOAD_FOLDER outside your code directory
 UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'dms_uploads')  # Or use a custom path like '/var/dms/uploads'
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'}
+ALLOWED_EXTENSIONS = {
+    'txt', 'pdf',
+    'png', 'jpg', 'jpeg', 'gif', 'bmp',
+    'doc', 'docx',
+    'xls', 'xlsx',
+    'ppt', 'pptx',
+    'zip'
+}
 
 # Add configuration for file storage
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -92,7 +102,8 @@ def save_uploaded_file(file, user_id):
             return None, None, "Failed to save file to server"
             
         print(f"DEBUG: File successfully saved at: {file_path}")
-        return final_filename, file_path, None
+        file_path_hash = hash_file_path(file_path)
+        return final_filename, file_path, file_path_hash, None
         
     except Exception as e:
         print(f"Error saving file: {e}")
@@ -141,7 +152,8 @@ def upload_file():
             return jsonify({'error': f'File type not allowed. Allowed types: {allowed_types}'}), 400
         
         # Save the file
-        final_filename, file_path, error_msg = save_uploaded_file(file, user_id)
+
+        final_filename, file_path, file_path_hash, error_msg = save_uploaded_file(file, user_id)
         if not file_path:
             return jsonify({'error': error_msg or 'Failed to save file'}), 400
 
@@ -193,10 +205,11 @@ def upload_file():
             'text_sample': classification_result.get('text_sample'),
             'shared': False,
             'document_type_category_id': None,
-            'file_path': file_path
+            'file_path': file_path_hash  # Store only the hash in the DB
         }
 
         print(f"DEBUG: Creating file record with data: {file_data}")
+        print(f"DEBUG: Real file path: {file_path} | Hash stored: {file_path_hash}")
 
         file_id = DMSDatabase.create_file(file_data)
 
@@ -221,7 +234,7 @@ def upload_file():
                 'filename': final_filename,
                 'original_name': file.filename,
                 'workspace_additions': workspace_additions,
-                'file_path': file_path,
+                'file_path': file_path_hash,
                 'classification': classification_result
             })
         else:
@@ -267,8 +280,9 @@ def download_file(file_id):
             if not os.path.exists(file_path):
                 return jsonify({'error': 'File not found on server. Please re-upload the file.'}), 404
         
-        # Use original_name for download, fallback to name
-        download_name = file_record.get('original_name') or file_record.get('name')
+        # Use the current stored `name` for download (this is the visible/current filename)
+        # Fallback to `original_name` if `name` is missing
+        download_name = file_record.get('name') or file_record.get('original_name')
         
         print(f"DEBUG: Sending file: {file_path} as {download_name}")
         return send_file(
@@ -291,91 +305,127 @@ def file_preview(file_id):
         if not file_record:
             return jsonify({'error': 'File not found'}), 404
         
+        # file_path in DB is stored as a hash. Search the upload folder for the actual file.
         file_path = file_record.get('file_path')
+        actual_file_path = None
+        
+        # Try to find the real file by searching for the filename in the upload folder
         if not file_path or not os.path.exists(file_path):
+            upload_folder = app.config.get('UPLOAD_FOLDER')
+            if upload_folder and os.path.exists(upload_folder):
+                target_names = [file_record.get('name'), file_record.get('original_name')]
+                for root, dirs, files in os.walk(upload_folder):
+                    for f in files:
+                        if f in target_names:
+                            actual_file_path = os.path.join(root, f)
+                            break
+                    if actual_file_path:
+                        break
+        else:
+            actual_file_path = file_path
+        
+        if not actual_file_path or not os.path.exists(actual_file_path):
             return jsonify({'error': 'File not found on server'}), 404
 
         file_type = file_record['type'].lower()
         file_name = file_record.get('original_name') or file_record.get('name')
         
         print(f"DEBUG: Visual preview requested for {file_name} (type: {file_type})")
+        print(f"DEBUG: Actual file path resolved: {actual_file_path}")
 
-        # For PDFs - serve directly (perfect visual)
+        # For PDFs - serve directly inline (perfect visual)
         if file_type == 'pdf':
-            return send_file(file_path, mimetype='application/pdf')
+            return send_file(actual_file_path, mimetype='application/pdf', as_attachment=False)
         
         # For images - convert to PDF for consistent preview
         elif file_type in ['png', 'jpg', 'jpeg', 'gif', 'bmp']:
             try:
-                pdf_path = convert_image_to_pdf(file_path)
+                pdf_path = convert_image_to_pdf(actual_file_path)
                 if pdf_path and os.path.exists(pdf_path):
-                    return send_file(pdf_path, mimetype='application/pdf')
+                    return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
                 else:
-                    # Fallback: serve image directly
-                    return send_file(file_path, mimetype=f'image/{file_type}')
+                    # Fallback: serve image directly inline
+                    # Normalize common image mimetypes
+                    image_mimetypes = {
+                        'jpg': 'image/jpeg',
+                        'jpeg': 'image/jpeg',
+                        'png': 'image/png',
+                        'gif': 'image/gif',
+                        'bmp': 'image/bmp'
+                    }
+                    mimetype = image_mimetypes.get(file_type, f'image/{file_type}')
+                    return send_file(actual_file_path, mimetype=mimetype, as_attachment=False)
             except Exception as e:
                 print(f"Image to PDF conversion error: {e}")
-                return send_file(file_path, mimetype=f'image/{file_type}')
+                image_mimetypes = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'bmp': 'image/bmp'
+                }
+                mimetype = image_mimetypes.get(file_type, f'image/{file_type}')
+                return send_file(actual_file_path, mimetype=mimetype, as_attachment=False)
         
         # For Word documents - convert to PDF for exact visual
         elif file_type in ['doc', 'docx']:
             try:
-                pdf_path = convert_word_to_pdf_visual(file_path, file_type)
+                pdf_path = convert_word_to_pdf_visual(actual_file_path, file_type)
                 if pdf_path and os.path.exists(pdf_path):
-                    return send_file(pdf_path, mimetype='application/pdf')
+                    return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
                 else:
-                    return create_fallback_preview(file_path, file_type, "Word Document")
+                    return create_fallback_preview(actual_file_path, file_type, "Word Document")
             except Exception as e:
                 print(f"Word to PDF conversion error: {e}")
-                return create_fallback_preview(file_path, file_type, "Word Document")
+                return create_fallback_preview(actual_file_path, file_type, "Word Document")
         
         # For Excel files - convert to PDF for exact visual
         elif file_type in ['xls', 'xlsx']:
             try:
-                pdf_path = convert_excel_to_pdf_visual(file_path, file_type)
+                pdf_path = convert_excel_to_pdf_visual(actual_file_path, file_type)
                 if pdf_path and os.path.exists(pdf_path):
-                    return send_file(pdf_path, mimetype='application/pdf')
+                    return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
                 else:
-                    return create_fallback_preview(file_path, file_type, "Excel Spreadsheet")
+                    return create_fallback_preview(actual_file_path, file_type, "Excel Spreadsheet")
             except Exception as e:
                 print(f"Excel to PDF conversion error: {e}")
-                return create_fallback_preview(file_path, file_type, "Excel Spreadsheet")
+                return create_fallback_preview(actual_file_path, file_type, "Excel Spreadsheet")
         
         # For PowerPoint files - convert to PDF for exact visual
         elif file_type in ['ppt', 'pptx']:
             try:
-                pdf_path = convert_powerpoint_to_pdf_visual(file_path, file_type)
+                pdf_path = convert_powerpoint_to_pdf_visual(actual_file_path, file_type)
                 if pdf_path and os.path.exists(pdf_path):
-                    return send_file(pdf_path, mimetype='application/pdf')
+                    return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
                 else:
-                    return create_fallback_preview(file_path, file_type, "PowerPoint Presentation")
+                    return create_fallback_preview(actual_file_path, file_type, "PowerPoint Presentation")
             except Exception as e:
                 print(f"PowerPoint to PDF conversion error: {e}")
-                return create_fallback_preview(file_path, file_type, "PowerPoint Presentation")
+                return create_fallback_preview(actual_file_path, file_type, "PowerPoint Presentation")
         
         # For text files - create formatted PDF
         elif file_type == 'txt':
             try:
-                pdf_path = convert_text_to_pdf(file_path)
+                pdf_path = convert_text_to_pdf(actual_file_path)
                 if pdf_path and os.path.exists(pdf_path):
-                    return send_file(pdf_path, mimetype='application/pdf')
+                    return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
                 else:
-                    return create_fallback_preview(file_path, file_type, "Text File")
+                    return create_fallback_preview(actual_file_path, file_type, "Text File")
             except Exception as e:
                 print(f"Text to PDF conversion error: {e}")
-                return create_fallback_preview(file_path, file_type, "Text File")
+                return create_fallback_preview(actual_file_path, file_type, "Text File")
         
         # For ZIP files - create informative PDF
         elif file_type == 'zip':
             try:
-                pdf_path = convert_zip_to_pdf(file_path)
+                pdf_path = convert_zip_to_pdf(actual_file_path)
                 if pdf_path and os.path.exists(pdf_path):
-                    return send_file(pdf_path, mimetype='application/pdf')
+                    return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
                 else:
-                    return create_fallback_preview(file_path, file_type, "ZIP Archive")
+                    return create_fallback_preview(actual_file_path, file_type, "ZIP Archive")
             except Exception as e:
                 print(f"ZIP to PDF conversion error: {e}")
-                return create_fallback_preview(file_path, file_type, "ZIP Archive")
+                return create_fallback_preview(actual_file_path, file_type, "ZIP Archive")
         
         # Unsupported file types
         else:
@@ -383,6 +433,136 @@ def file_preview(file_id):
             
     except Exception as e:
         return jsonify({'error': f'Preview failed: {str(e)}'}), 500
+
+
+@app.route('/api/preview-debug/<int:file_id>', methods=['GET'])
+def preview_debug(file_id):
+    """Debug endpoint: resolve file path and attempt conversions, returning diagnostics as JSON."""
+    try:
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'error': 'File not found'}), 404
+
+        # Resolve actual path (same logic as preview)
+        file_path = file_record.get('file_path')
+        actual_file_path = None
+        if not file_path or not os.path.exists(file_path):
+            upload_folder = app.config.get('UPLOAD_FOLDER')
+            if upload_folder and os.path.exists(upload_folder):
+                target_names = [file_record.get('name'), file_record.get('original_name')]
+                for root, dirs, files in os.walk(upload_folder):
+                    for f in files:
+                        if f in target_names:
+                            actual_file_path = os.path.join(root, f)
+                            break
+                    if actual_file_path:
+                        break
+        else:
+            actual_file_path = file_path
+
+        diagnostics = {
+            'file_id': file_id,
+            'db_file_path': file_path,
+            'resolved_path': actual_file_path,
+            'exists': os.path.exists(actual_file_path) if actual_file_path else False,
+            'file_type': file_record.get('type')
+        }
+
+        if not actual_file_path or not os.path.exists(actual_file_path):
+            return jsonify({'error': 'File not found on server', 'diagnostics': diagnostics}), 404
+
+        # Attempt LibreOffice conversion and capture output
+        try:
+            import subprocess, shutil
+            output_dir = tempfile.mkdtemp(prefix='dms_lo_out_')
+            diagnostics['libreoffice'] = {}
+
+            soffice_candidates = [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            ]
+            soffice_path = None
+            for candidate in soffice_candidates:
+                if os.path.exists(candidate):
+                    soffice_path = candidate
+                    break
+            if not soffice_path:
+                soffice_path = shutil.which('soffice')
+
+            diagnostics['libreoffice']['soffice_path'] = soffice_path
+
+            if soffice_path:
+                cmd = [soffice_path, '--headless', '--convert-to', 'pdf', '--outdir', output_dir, actual_file_path]
+                proc = subprocess.run(cmd, capture_output=True, timeout=90)
+                diagnostics['libreoffice']['returncode'] = proc.returncode
+                diagnostics['libreoffice']['stdout'] = proc.stdout.decode('utf-8', 'ignore')
+                diagnostics['libreoffice']['stderr'] = proc.stderr.decode('utf-8', 'ignore')
+
+                base_name = os.path.splitext(os.path.basename(actual_file_path))[0]
+                produced_pdf = os.path.join(output_dir, base_name + '.pdf')
+                diagnostics['libreoffice']['produced_pdf'] = produced_pdf
+                diagnostics['libreoffice']['produced_exists'] = os.path.exists(produced_pdf)
+            else:
+                diagnostics['libreoffice']['error'] = 'soffice binary not found'
+        except Exception as e:
+            diagnostics['libreoffice'] = {'error': str(e)}
+
+        # Attempt COM conversion (Windows) and capture exceptions
+        try:
+            import comtypes.client
+            diagnostics['com'] = {}
+            file_type = (file_record.get('type') or '').lower()
+
+            if file_type in ['doc', 'docx']:
+                try:
+                    pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
+                    word = comtypes.client.CreateObject('Word.Application')
+                    word.Visible = False
+                    doc = word.Documents.Open(os.path.abspath(actual_file_path), ReadOnly=1)
+                    doc.SaveAs(os.path.abspath(pdf_path), FileFormat=17)
+                    doc.Close()
+                    word.Quit()
+                    diagnostics['com']['word_pdf'] = pdf_path
+                    diagnostics['com']['word_pdf_exists'] = os.path.exists(pdf_path)
+                except Exception as e:
+                    diagnostics['com']['word_error'] = str(e)
+
+            elif file_type in ['xls', 'xlsx']:
+                try:
+                    pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
+                    excel = comtypes.client.CreateObject('Excel.Application')
+                    excel.Visible = False
+                    wb = excel.Workbooks.Open(os.path.abspath(actual_file_path))
+                    wb.ExportAsFixedFormat(0, os.path.abspath(pdf_path))
+                    wb.Close()
+                    excel.Quit()
+                    diagnostics['com']['excel_pdf'] = pdf_path
+                    diagnostics['com']['excel_pdf_exists'] = os.path.exists(pdf_path)
+                except Exception as e:
+                    diagnostics['com']['excel_error'] = str(e)
+
+            elif file_type in ['ppt', 'pptx']:
+                try:
+                    pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
+                    powerpoint = comtypes.client.CreateObject('PowerPoint.Application')
+                    powerpoint.Visible = False
+                    pres = powerpoint.Presentations.Open(os.path.abspath(actual_file_path), WithWindow=False)
+                    pres.SaveAs(os.path.abspath(pdf_path), 32)
+                    pres.Close()
+                    powerpoint.Quit()
+                    diagnostics['com']['ppt_pdf'] = pdf_path
+                    diagnostics['com']['ppt_pdf_exists'] = os.path.exists(pdf_path)
+                except Exception as e:
+                    diagnostics['com']['ppt_error'] = str(e)
+            else:
+                diagnostics['com']['note'] = 'COM not attempted for this file type'
+        except Exception as e:
+            diagnostics['com'] = {'error': str(e)}
+
+        return jsonify({'diagnostics': diagnostics})
+
+    except Exception as e:
+        return jsonify({'error': f'Preview debug failed: {str(e)}'}), 500
     
 import tempfile
 import os
@@ -411,108 +591,194 @@ def convert_image_to_pdf(image_path):
         return None
 
 def convert_word_to_pdf_visual(file_path, file_type):
-    """Convert Word documents to PDF using Windows COM (exact visual)"""
+    """Convert Word documents to PDF using LibreOffice (or fallback to COM)"""
     try:
         pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
+        # First try LibreOffice (most reliable)
+        try:
+            import subprocess, shutil
+            output_dir = os.path.dirname(pdf_path)
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Try common LibreOffice locations and PATH
+            soffice_candidates = [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            ]
+            soffice_path = None
+            for candidate in soffice_candidates:
+                if os.path.exists(candidate):
+                    soffice_path = candidate
+                    break
+
+            if not soffice_path:
+                soffice_path = shutil.which('soffice')
+
+            if soffice_path:
+                cmd = [soffice_path, "--headless", "--convert-to", "pdf", "--outdir", output_dir, file_path]
+                result = subprocess.run(cmd, capture_output=True, timeout=60)
+
+                base_name = os.path.splitext(os.path.basename(file_path))[0]
+                libreoffice_pdf = os.path.join(output_dir, base_name + ".pdf")
+
+                if result.returncode == 0 and os.path.exists(libreoffice_pdf):
+                    os.rename(libreoffice_pdf, pdf_path)
+                    print(f"DEBUG: Word document converted to PDF via LibreOffice: {pdf_path}")
+                    return pdf_path
+                else:
+                    print("DEBUG: LibreOffice returned non-zero or PDF not found")
+                    print(f"DEBUG: soffice_path={soffice_path}, returncode={getattr(result, 'returncode', None)}")
+                    print(f"DEBUG: stdout={getattr(result, 'stdout', b'').decode('utf-8', 'ignore')}")
+                    print(f"DEBUG: stderr={getattr(result, 'stderr', b'').decode('utf-8', 'ignore')}")
+            else:
+                print("DEBUG: LibreOffice 'soffice' binary not found on system PATH or common locations")
+        except Exception as lo_error:
+            print(f"LibreOffice conversion failed: {lo_error}")
         
-        # Use Windows COM to convert Word to PDF (exact visual representation)
+        # Fallback to Windows COM if LibreOffice not available
         try:
             import comtypes.client
-            
-            # Create Word application
             word = comtypes.client.CreateObject("Word.Application")
             word.Visible = False
-            
-            # Open document
-            if file_type == 'docx':
-                doc = word.Documents.Open(file_path)
-            else:  # .doc
-                doc = word.Documents.Open(file_path)
-            
-            # Export as PDF (this preserves all formatting exactly)
-            doc.SaveAs(pdf_path, FileFormat=17)  # 17 = wdFormatPDF
-            
-            # Close documents
+
+            # Open document (read-only recommended)
+            doc = word.Documents.Open(os.path.abspath(file_path), ReadOnly=1)
+            doc.SaveAs(os.path.abspath(pdf_path), FileFormat=17)  # 17 = wdFormatPDF
             doc.Close()
             word.Quit()
-            
-            print(f"DEBUG: Word document converted to PDF: {pdf_path}")
+            print(f"DEBUG: Word document converted to PDF via COM: {pdf_path}")
             return pdf_path
-            
         except Exception as com_error:
-            print(f"COM conversion failed: {com_error}")
-            # Fallback: create a simple PDF with content
-            return create_simple_pdf_from_content(file_path, "Word Document")
+            print(f"COM conversion also failed: {com_error}")
+            return None
             
     except Exception as e:
         print(f"Word to PDF conversion error: {e}")
         return None
 
 def convert_excel_to_pdf_visual(file_path, file_type):
-    """Convert Excel files to PDF using Windows COM (exact visual)"""
+    """Convert Excel files to PDF using LibreOffice (or fallback to COM)"""
     try:
         pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
+        # First try LibreOffice
+        try:
+            import subprocess, shutil
+            output_dir = os.path.dirname(pdf_path)
+            os.makedirs(output_dir, exist_ok=True)
+
+            soffice_candidates = [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            ]
+            soffice_path = None
+            for candidate in soffice_candidates:
+                if os.path.exists(candidate):
+                    soffice_path = candidate
+                    break
+            if not soffice_path:
+                soffice_path = shutil.which('soffice')
+
+            if soffice_path:
+                cmd = [soffice_path, "--headless", "--convert-to", "pdf", "--outdir", output_dir, file_path]
+                result = subprocess.run(cmd, capture_output=True, timeout=60)
+
+                base_name = os.path.splitext(os.path.basename(file_path))[0]
+                libreoffice_pdf = os.path.join(output_dir, base_name + ".pdf")
+
+                if result.returncode == 0 and os.path.exists(libreoffice_pdf):
+                    os.rename(libreoffice_pdf, pdf_path)
+                    print(f"DEBUG: Excel file converted to PDF via LibreOffice: {pdf_path}")
+                    return pdf_path
+                else:
+                    print("DEBUG: LibreOffice returned non-zero or PDF not found for Excel")
+                    print(f"DEBUG: stdout={getattr(result, 'stdout', b'').decode('utf-8', 'ignore')}")
+                    print(f"DEBUG: stderr={getattr(result, 'stderr', b'').decode('utf-8', 'ignore')}")
+            else:
+                print("DEBUG: LibreOffice 'soffice' binary not found on system PATH or common locations")
+        except Exception as lo_error:
+            print(f"LibreOffice conversion failed: {lo_error}")
         
-        # Use Windows COM to convert Excel to PDF (exact visual representation)
+        # Fallback to Windows COM
         try:
             import comtypes.client
-            
-            # Create Excel application
+
             excel = comtypes.client.CreateObject("Excel.Application")
             excel.Visible = False
-            
-            # Open workbook
-            workbook = excel.Workbooks.Open(file_path)
-            
-            # Export as PDF (this preserves all formatting exactly)
-            workbook.ExportAsFixedFormat(0, pdf_path)  # 0 = xlTypePDF
-            
-            # Close workbook
+
+            workbook = excel.Workbooks.Open(os.path.abspath(file_path))
+            workbook.ExportAsFixedFormat(0, os.path.abspath(pdf_path))  # 0 = xlTypePDF
             workbook.Close()
             excel.Quit()
-            
-            print(f"DEBUG: Excel workbook converted to PDF: {pdf_path}")
+
+            print(f"DEBUG: Excel workbook converted to PDF via COM: {pdf_path}")
             return pdf_path
-            
         except Exception as com_error:
-            print(f"COM conversion failed: {com_error}")
-            # Fallback: create a simple PDF with content
-            return create_simple_pdf_from_content(file_path, "Excel Spreadsheet")
+            print(f"COM conversion also failed: {com_error}")
+            return None
             
     except Exception as e:
         print(f"Excel to PDF conversion error: {e}")
         return None
 
 def convert_powerpoint_to_pdf_visual(file_path, file_type):
-    """Convert PowerPoint to PDF using Windows COM (exact visual)"""
+    """Convert PowerPoint to PDF using LibreOffice (or fallback to COM)"""
     try:
         pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf').name
+        # First try LibreOffice
+        try:
+            import subprocess, shutil
+            output_dir = os.path.dirname(pdf_path)
+            os.makedirs(output_dir, exist_ok=True)
+
+            soffice_candidates = [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            ]
+            soffice_path = None
+            for candidate in soffice_candidates:
+                if os.path.exists(candidate):
+                    soffice_path = candidate
+                    break
+            if not soffice_path:
+                soffice_path = shutil.which('soffice')
+
+            if soffice_path:
+                cmd = [soffice_path, "--headless", "--convert-to", "pdf", "--outdir", output_dir, file_path]
+                result = subprocess.run(cmd, capture_output=True, timeout=60)
+
+                base_name = os.path.splitext(os.path.basename(file_path))[0]
+                libreoffice_pdf = os.path.join(output_dir, base_name + ".pdf")
+
+                if result.returncode == 0 and os.path.exists(libreoffice_pdf):
+                    os.rename(libreoffice_pdf, pdf_path)
+                    print(f"DEBUG: PowerPoint file converted to PDF via LibreOffice: {pdf_path}")
+                    return pdf_path
+                else:
+                    print("DEBUG: LibreOffice returned non-zero or PDF not found for PowerPoint")
+                    print(f"DEBUG: stdout={getattr(result, 'stdout', b'').decode('utf-8', 'ignore')}")
+                    print(f"DEBUG: stderr={getattr(result, 'stderr', b'').decode('utf-8', 'ignore')}")
+            else:
+                print("DEBUG: LibreOffice 'soffice' binary not found on system PATH or common locations")
+        except Exception as lo_error:
+            print(f"LibreOffice conversion failed: {lo_error}")
         
-        # Use Windows COM to convert PowerPoint to PDF (exact visual representation)
+        # Fallback to Windows COM
         try:
             import comtypes.client
-            
-            # Create PowerPoint application
+
             powerpoint = comtypes.client.CreateObject("PowerPoint.Application")
             powerpoint.Visible = False
-            
-            # Open presentation
-            presentation = powerpoint.Presentations.Open(file_path)
-            
-            # Export as PDF (this preserves all formatting exactly)
-            presentation.SaveAs(pdf_path, 32)  # 32 = ppSaveAsPDF
-            
-            # Close presentation
+
+            presentation = powerpoint.Presentations.Open(os.path.abspath(file_path), WithWindow=False)
+            presentation.SaveAs(os.path.abspath(pdf_path), 32)  # 32 = ppSaveAsPDF
             presentation.Close()
             powerpoint.Quit()
-            
-            print(f"DEBUG: PowerPoint presentation converted to PDF: {pdf_path}")
+
+            print(f"DEBUG: PowerPoint file converted to PDF via COM: {pdf_path}")
             return pdf_path
-            
         except Exception as com_error:
-            print(f"COM conversion failed: {com_error}")
-            # Fallback: create a simple PDF with content
-            return create_simple_pdf_from_content(file_path, "PowerPoint Presentation")
+            print(f"COM conversion also failed: {com_error}")
+            return None
             
     except Exception as e:
         print(f"PowerPoint to PDF conversion error: {e}")
@@ -637,7 +903,7 @@ def create_fallback_preview(file_path, file_type, description):
     """Create fallback PDF preview"""
     pdf_path = create_simple_pdf_from_content(file_path, description)
     if pdf_path and os.path.exists(pdf_path):
-        return send_file(pdf_path, mimetype='application/pdf')
+        return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
     else:
         return jsonify({
             'type': 'unsupported',
@@ -661,7 +927,7 @@ def create_unsupported_preview(file_type):
         c.drawString(50, 680, "Please download the file to view its contents.")
         
         c.save()
-        return send_file(pdf_path, mimetype='application/pdf')
+        return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
         
     except Exception as e:
         return jsonify({

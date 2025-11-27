@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 27, 2025 at 07:14 AM
+-- Generation Time: Nov 27, 2025 at 05:05 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -342,7 +342,44 @@ INSERT INTO `activity_log` (`activity_log_id`, `user_id`, `activity`, `timestamp
 (8379, 1, 'User logged in', '2025-11-27 04:35:19'),
 (8380, 1, 'User logged in', '2025-11-27 04:36:28'),
 (8381, 1, 'User logged in', '2025-11-27 04:49:09'),
-(8382, 1, 'User logged in', '2025-11-27 05:21:50');
+(8382, 1, 'User logged in', '2025-11-27 05:21:50'),
+(8383, 3, 'User logged in', '2025-11-27 06:21:36'),
+(8384, 1, 'User logged in', '2025-11-27 09:04:20'),
+(8385, 1, 'User logged in', '2025-11-27 09:19:57'),
+(8386, 1, 'User logged in', '2025-11-27 09:23:24'),
+(8387, 1, 'User logged in', '2025-11-27 11:11:46'),
+(8388, 1, 'User logged in', '2025-11-27 12:35:23'),
+(8389, 1, 'Downloaded resignation.pdf', '2025-11-27 12:37:55'),
+(8390, 1, 'Archived user: sample name', '2025-11-27 12:52:28'),
+(8391, 1, 'Restored user: sample name', '2025-11-27 12:52:36'),
+(8392, 1, 'Uploaded 1 files', '2025-11-27 13:09:36'),
+(8393, 1, 'Uploaded 1 files', '2025-11-27 13:17:47'),
+(8394, 1, 'Added user: Lyrika Jewel Hermoso', '2025-11-27 13:36:08'),
+(8395, 1, 'Updated user: Lyrika Jewel Hermoso', '2025-11-27 13:36:27'),
+(8396, 1, 'Updated user: Raiza Roces', '2025-11-27 13:36:43'),
+(8397, 1, 'Archived user: Full name', '2025-11-27 13:36:54'),
+(8398, 7, 'User logged in', '2025-11-27 13:40:25'),
+(8399, 7, 'Uploaded 1 files', '2025-11-27 13:44:17'),
+(8400, 5, 'User logged in', '2025-11-27 13:59:49'),
+(8401, 5, 'Uploaded 1 files', '2025-11-27 14:18:20'),
+(8402, 5, 'Renamed file from \"resignation.pdf\" to \"resign.pdf\"', '2025-11-27 14:53:11'),
+(8403, 5, 'Uploaded 1 files', '2025-11-27 14:53:37'),
+(8404, 5, 'Uploaded 1 files', '2025-11-27 15:00:49'),
+(8405, 5, 'Uploaded 1 files', '2025-11-27 15:01:32'),
+(8406, 5, 'Downloaded dfgh.xlsx', '2025-11-27 15:03:17'),
+(8407, 5, 'Uploaded 1 files', '2025-11-27 15:07:01'),
+(8408, 5, 'Uploaded 1 files', '2025-11-27 15:36:39'),
+(8409, 5, 'Renamed file from \"leave.pdf\" to \"hsdhgsa.pdf\"', '2025-11-27 15:36:54'),
+(8410, 5, 'Renamed file from \"leave.pdf\" to \"hsdhgsa.pdf\"', '2025-11-27 15:36:55'),
+(8411, 7, 'User logged in', '2025-11-27 15:39:47'),
+(8412, 7, 'Restored user: Full name', '2025-11-27 15:42:25'),
+(8413, 3, 'User logged in', '2025-11-27 15:43:55'),
+(8414, 5, 'User logged in', '2025-11-27 15:55:11'),
+(8415, 7, 'User logged in', '2025-11-27 15:57:48'),
+(8416, 7, 'Downloaded resignation.docx', '2025-11-27 15:58:56'),
+(8417, 7, 'Renamed file from \"resign.pdf\" to \"rresign.pdf\"', '2025-11-27 16:00:09'),
+(8418, 7, 'Renamed file from \"resign.pdf\" to \"rresign.pdf\"', '2025-11-27 16:00:10'),
+(8419, 3, 'User logged in', '2025-11-27 16:00:50');
 
 -- --------------------------------------------------------
 
@@ -442,9 +479,19 @@ INSERT INTO `files` (`file_id`, `name`, `original_name`, `size`, `type`, `user_i
 (1106, 'HRM.pptx', 'HRM.pptx', 7233592, 'pptx', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-26 19:29:28', 'deleted', 'e09b326a68330d5699c0c1e407d6cbf1997d3e05b3d2bfd09b63efd7a1fa17dc', NULL),
 (1107, 'leave (3).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 1, '2025-11-26 22:59:23', 'active', 'f5efc8b165eadba8f92baef41ded521ac2774880e398c15ad4edb80764fb030e', NULL),
 (1108, 'leave (4).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 01:29:13', 'active', 'c2f9b40b5a1a68ca5fb5a2b194c4f2ba664004db756dcaf8d016f76bd5bfad70', NULL),
-(1109, 'resignation.pdf', 'resignation.pdf', 37030, 'pdf', 1, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 1, '2025-11-27 02:08:51', 'active', 'ffd67339e33a8a191a86d3d141fa986862aa97911f5882788cb5d97356ecd203', NULL),
+(1109, 'rresign.pdf', 'resignation.pdf', 37030, 'pdf', 1, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 1, '2025-11-27 02:08:51', 'active', '01c6b7d5fb219630d842e5b4f17295f462e797792f0d603756902f376c1f9b6d', NULL),
 (1110, 'leave (5).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 04:24:25', 'active', '7fc284357aa8201cd744a49062913da8dc1ba0966d8da31831521b974231cd3d', NULL),
-(1111, 'leave (6).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 04:24:32', 'active', '9ca90b50c31ae5a2296ad8d5c53d023a9c89bf2067292f82c243b197b537285a', NULL);
+(1111, 'leave (6).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 04:24:32', 'active', '9ca90b50c31ae5a2296ad8d5c53d023a9c89bf2067292f82c243b197b537285a', NULL),
+(1112, 'resignation (1).pdf', 'resignation.pdf', 37030, 'pdf', 1, NULL, 5001, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 0, '2025-11-27 13:09:36', 'active', '4f728e4ca925f6ba144be25986ea200c52e85bfef31a6ab6ea7861bbaa5fb10f', NULL),
+(1113, 'Resignation-Letter.docx', 'Resignation-Letter.docx', 7245, 'docx', 1, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'lyrika jewel hermoso\n 123 mabini street\n pasig city, 1600\n lyrika.hermoso@email.com\n 0917-123-4567\n november 27, 2025\nmr. juan dela cruz\n hr manager\n abc solutions inc.\n 456 ortigas avenue\n pasig city...', NULL, 0, 1, 0, '2025-11-27 13:17:47', 'active', '5543963d8ea6298782536b2e0f3744df985a576a911419563717b26fb5deb140', NULL),
+(1114, 'resignation.docx', 'resignation.docx', 14217, 'docx', 7, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 0, '2025-11-27 13:44:02', 'active', 'd99a90e88e58750fe50866f9eb7d51b5a4c6e097b613ef9c4867adc85ccac00c', NULL),
+(1115, 'resignation.docx', 'resignation.docx', 14217, 'docx', 7, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 0, '2025-11-27 13:44:17', 'archived', '82527e2c906e8c04ab549df596c084ad84a84290feea9bd17d49102b00c62e6a', NULL),
+(1116, 'resignation.docx', 'resignation.docx', 14217, 'docx', 5, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 0, '2025-11-27 14:18:20', 'active', 'd3878b8da1129109cdd97d5da7b75822ba1a56f564e691197a32806880eaa008', NULL),
+(1117, 'hsdhgsa.pdf', 'leave.pdf', 17170, 'pdf', 5, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 14:53:37', 'active', 'd8efadb92d20cfa51a8721cf7a074ca85cd880a5bfc671668954c07bb4b45886', NULL),
+(1118, 'resignation (1).docx', 'resignation.docx', 14217, 'docx', 5, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 0, '2025-11-27 15:00:49', 'active', '323c40780213b8a49e957ef83ba1dec4e783d02d1e39447563df16625b1a5f6a', NULL),
+(1119, 'DTR_Format_Sample.xlsx', 'DTR_Format_Sample.xlsx', 31273, 'xlsx', 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-27 15:01:32', 'active', '1f7709c0a91c5768f31a3069051cd553ce6a4f3f31f5a6b2ac60c20ad4f9b7cf', NULL),
+(1120, 'DMS.zip', 'DMS.zip', 682609, 'zip', 5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-27 15:07:00', 'active', '2e85c736cca3877ed4cee863e9a86c113a094d5d851529bed1e77ab94031d8d8', NULL),
+(1121, 'leave (1).pdf', 'leave.pdf', 17170, 'pdf', 5, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 15:36:38', 'active', '82cba8bd71019a291d6aa3f7022f627e7e64096356db2ba65520df0d85d02f5c', NULL);
 
 -- --------------------------------------------------------
 
@@ -483,7 +530,10 @@ CREATE TABLE `file_shares` (
 INSERT INTO `file_shares` (`share_id`, `file_id`, `shared_with_user_id`, `shared_with_department_id`, `permission`, `shared_by`, `created_at`) VALUES
 (1, 1109, 4, NULL, 'editor', 1, '2025-11-27 02:37:41'),
 (2, 1109, 2, NULL, 'viewer', 1, '2025-11-27 02:37:47'),
-(3, 1109, NULL, 4005, 'viewer', 1, '2025-11-27 02:37:59');
+(3, 1109, NULL, 4005, 'viewer', 1, '2025-11-27 02:37:59'),
+(4, 1109, NULL, 4002, 'viewer', 1, '2025-11-27 12:37:07'),
+(5, 1109, NULL, 4001, 'viewer', 1, '2025-11-27 12:37:14'),
+(6, 1109, NULL, 4003, 'viewer', 1, '2025-11-27 12:37:27');
 
 -- --------------------------------------------------------
 
@@ -641,7 +691,20 @@ INSERT INTO `sessions` (`sessions_id`, `user_id`, `email`, `timestamp`) VALUES
 (7065, 1, 'admin@example.com', '2025-11-27 04:35:18'),
 (7066, 1, 'admin@example.com', '2025-11-27 04:36:28'),
 (7067, 1, 'admin@example.com', '2025-11-27 04:49:08'),
-(7068, 1, 'admin@example.com', '2025-11-27 05:21:50');
+(7068, 1, 'admin@example.com', '2025-11-27 05:21:50'),
+(7069, 3, 'roces_raiza@plpasig.edu.ph', '2025-11-27 06:21:35'),
+(7070, 1, 'admin@example.com', '2025-11-27 09:04:19'),
+(7071, 1, 'admin@example.com', '2025-11-27 09:19:57'),
+(7072, 1, 'admin@example.com', '2025-11-27 09:23:24'),
+(7073, 1, 'admin@example.com', '2025-11-27 11:11:46'),
+(7074, 1, 'admin@example.com', '2025-11-27 12:35:22'),
+(7075, 7, 'hermoso_lyrikajewel@plpasig.edu.ph', '2025-11-27 13:40:24'),
+(7076, 5, 'vallejos_glaiza@plpasig.edu.ph', '2025-11-27 13:59:49'),
+(7077, 7, 'hermoso_lyrikajewel@plpasig.edu.ph', '2025-11-27 15:39:47'),
+(7078, 3, 'roces_raiza@plpasig.edu.ph', '2025-11-27 15:43:55'),
+(7079, 5, 'vallejos_glaiza@plpasig.edu.ph', '2025-11-27 15:55:10'),
+(7080, 7, 'hermoso_lyrikajewel@plpasig.edu.ph', '2025-11-27 15:57:48'),
+(7081, 3, 'roces_raiza@plpasig.edu.ph', '2025-11-27 16:00:49');
 
 -- --------------------------------------------------------
 
@@ -690,12 +753,13 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `name`, `email`, `password`, `role`, `department_id`, `profile_image`, `status`, `archive_reason`, `archive_notes`, `archived_at`, `created_at`, `updated_at`) VALUES
-(1, 'System Admin', 'admin@example.com', 'admin123', 'system_admin', 4004, '/api/uploads/profile_images/profile_1_1764211004.png', 'active', NULL, NULL, NULL, '2025-11-17 02:21:49', '2025-11-27 04:09:46'),
+(1, 'System Admin', 'admin@example.com', 'admin123', 'system_admin', 4004, NULL, 'active', NULL, NULL, NULL, '2025-11-17 02:21:49', '2025-11-27 15:54:08'),
 (2, 'Jane Doe', 'jane@example.com', 'jane123', 'staff', 4002, NULL, 'active', NULL, NULL, NULL, '2025-11-17 02:21:49', '2025-11-17 02:21:49'),
-(3, 'Raiza Roces', 'roces_raiza@plpasig.edu.ph', 'qwerty', 'department_admin', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-18 22:10:35', '2025-11-27 01:26:31'),
-(4, 'Full name', 'fname@gmail.com', 'qwerty', 'system_admin', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-21 15:29:52', '2025-11-27 01:26:39'),
-(5, 'Glaiza Vallejos', 'vallejos_glaiza@plpasig.edu.ph', '123456', 'staff', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-22 03:40:51', '2025-11-22 03:59:25'),
-(6, 'sample name', 'sample@gmail.com', 'qwerty', 'staff', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-26 22:01:32', '2025-11-27 02:20:17');
+(3, 'Raiza Roces', 'roces_raiza@plpasig.edu.ph', 'qwerty', 'system_admin', 4001, '6f84d2810c1ce053608f73ee9189f4f11c1962f757f0a10d4fac30b24b898f33.png', 'active', NULL, NULL, NULL, '2025-11-18 22:10:35', '2025-11-27 15:54:25'),
+(4, 'Full name', 'fname@gmail.com', 'qwerty', 'system_admin', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-21 15:29:52', '2025-11-27 15:42:20'),
+(5, 'Glaiza Vallejos', 'vallejos_glaiza@plpasig.edu.ph', '123456', 'staff', 4001, '62e248d20bb258aca37fdb1fc06f11e983f2631ca1f2b52bc43281606fa2fd11.png', 'active', NULL, NULL, NULL, '2025-11-22 03:40:51', '2025-11-27 15:56:07'),
+(6, 'sample name', 'sample@gmail.com', 'qwerty', 'staff', 4003, NULL, 'active', NULL, NULL, NULL, '2025-11-26 22:01:32', '2025-11-27 13:49:06'),
+(7, 'Lyrika Jewel Hermoso', 'hermoso_lyrikajewel@plpasig.edu.ph', 'QWERTY', 'department_admin', 4003, 'feb6fa964ad9acf0912f9762c24db9210a285ad4cbc655b370557715bc8a4b30.png', 'active', NULL, NULL, NULL, '2025-11-27 13:36:06', '2025-11-27 15:58:02');
 
 -- --------------------------------------------------------
 
@@ -873,7 +937,7 @@ ALTER TABLE `workspace_members`
 -- AUTO_INCREMENT for table `activity_log`
 --
 ALTER TABLE `activity_log`
-  MODIFY `activity_log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8383;
+  MODIFY `activity_log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8420;
 
 --
 -- AUTO_INCREMENT for table `categories`
@@ -891,7 +955,7 @@ ALTER TABLE `departments`
 -- AUTO_INCREMENT for table `files`
 --
 ALTER TABLE `files`
-  MODIFY `file_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1112;
+  MODIFY `file_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1122;
 
 --
 -- AUTO_INCREMENT for table `file_editors`
@@ -903,7 +967,7 @@ ALTER TABLE `file_editors`
 -- AUTO_INCREMENT for table `file_shares`
 --
 ALTER TABLE `file_shares`
-  MODIFY `share_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `share_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `file_versions`
@@ -927,7 +991,7 @@ ALTER TABLE `reset_codes`
 -- AUTO_INCREMENT for table `sessions`
 --
 ALTER TABLE `sessions`
-  MODIFY `sessions_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7069;
+  MODIFY `sessions_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7082;
 
 --
 -- AUTO_INCREMENT for table `settings`

@@ -1523,6 +1523,34 @@
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       }
 
+      .rich-preview {
+        max-height: 520px;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        background: var(--card);
+      }
+
+      .rich-preview .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 16px;
+      }
+
+      .rich-preview .preview-table th,
+      .rich-preview .preview-table td {
+        border: 1px solid var(--border);
+        padding: 8px;
+        font-size: 13px;
+        text-align: left;
+      }
+
+      .rich-preview h4 {
+        margin: 16px 0 8px;
+        font-size: 15px;
+      }
+
       .file-preview-main {
         display: flex;
         gap: 20px;
@@ -1896,7 +1924,7 @@
                 <button onclick="openAddFileModal()">
                   <i class="fa-solid fa-upload"></i> Upload File
                 </button>
-                <button onclick="openCreateWorkspace()">
+                <button onclick="openCreateWorkspace()" data-role-action="workspace-create">
                   <i class="fa-solid fa-plus"></i> Create Workspace
                 </button>
               </div>
@@ -1977,9 +2005,6 @@
                 <button onclick="openAddFileModal()">
                   <i class="fa-solid fa-upload"></i> Upload
                 </button>
-                <button class="icon-btn" onclick="openShareModal()">
-                  <i class="fa-solid fa-share-nodes"></i>
-                </button>
               </div>
             </div>
 
@@ -1993,7 +2018,8 @@
               <select id="sortFiles" onchange="renderFiles()">
                 <option value="new">Sort: Newest</option>
                 <option value="old">Sort: Oldest</option>
-                <option value="name">Sort: Name</option>
+                <option value="name_asc">Sort: Name (A-Z)</option>
+                <option value="name_desc">Sort: Name (Z-A)</option>
               </select>
               <div style="flex: 1"></div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -2008,7 +2034,7 @@
           <section id="workspaces" class="view" style="display: none">
             <div class="flex-between" style="margin-bottom: 24px">
               <h2>Workspaces</h2>
-              <button onclick="openCreateWorkspace()">
+              <button onclick="openCreateWorkspace()" data-role-action="workspace-create">
                 <i class="fa-solid fa-plus"></i> New Workspace
               </button>
             </div>
@@ -2144,6 +2170,12 @@
                 <option value="all">All Items</option>
                 <option value="files">Archived Files</option>
                 <option value="users">Archived Users</option>
+              </select>
+              <select id="archiveSortOrder" onchange="renderArchives()" style="max-width: 200px;">
+                <option value="newest">Sort: Newest</option>
+                <option value="oldest">Sort: Oldest</option>
+                <option value="name_asc">Sort: Name (A-Z)</option>
+                <option value="name_desc">Sort: Name (Z-A)</option>
               </select>
               <div style="flex: 1"></div>
               <button class="btn-secondary" id="bulkRestoreBtn" onclick="bulkRestoreArchived()" style="display: none;">
@@ -2343,12 +2375,29 @@ function showToast(msg, type = 'info') {
 }
 
   // Database API functions
+  function getAuthHeaders() {
+    const session = JSON.parse(localStorage.getItem("dms_session_v1") || "null");
+    if (session?.userId) {
+      return { 'X-User-Id': session.userId };
+    }
+    return {};
+  }
+
+  async function authFetch(url, options = {}) {
+    const headers = {
+      ...(options.headers || {}),
+      ...getAuthHeaders()
+    };
+    return fetch(url, { ...options, headers });
+  }
+
   async function apiCall(endpoint, options = {}) {
     try {
       const config = {
         headers: {
           'Content-Type': 'application/json',
-          ...options.headers
+          ...options.headers,
+          ...getAuthHeaders()
         },
         ...options
       };
@@ -2541,6 +2590,36 @@ function showToast(msg, type = 'info') {
   let sidebarCollapsed = false;
   let currentWorkspaceId = null;
   let categoriesSortOrder = "asc";
+let currentUserData = null;
+
+const ROLE_VIEW_ACCESS = {
+  system_admin: ["dashboard", "library", "workspaces", "userMgmt", "departments", "categories", "archives", "settings"],
+  department_admin: ["dashboard", "library", "workspaces", "userMgmt", "departments", "categories", "archives"],
+  staff: ["dashboard", "library", "workspaces", "archives"]
+};
+
+function getAllowedViewsForRole(role) {
+  if (!role) return ROLE_VIEW_ACCESS.staff;
+  return ROLE_VIEW_ACCESS[role] || ROLE_VIEW_ACCESS.staff;
+}
+
+function applyRoleNavigation(user) {
+  if (!user) return;
+  const allowedViews = getAllowedViewsForRole(user.role);
+  document.querySelectorAll(".nav-item").forEach((item) => {
+    const view = item.getAttribute("data-view");
+    if (!view) return;
+    item.style.display = allowedViews.includes(view) ? "flex" : "none";
+  });
+}
+
+function updateRoleBasedUI(user) {
+  const workspaceButtons = document.querySelectorAll('[data-role-action="workspace-create"]');
+  workspaceButtons.forEach((btn) => {
+    if (!btn) return;
+    btn.style.display = user.role === "staff" ? "none" : "inline-flex";
+  });
+}
 
   // Initialize application
   async function init() {
@@ -2622,6 +2701,7 @@ function showToast(msg, type = 'info') {
     const sidebarRole = document.getElementById("sidebarRole");
 
     if (user) {
+      currentUserData = user;
       topName.textContent = user.name;
       const roleLabel = user.role === "system_admin" ? "System Administrator" : 
                         user.role === "department_admin" ? "Department Administrator" : "Staff";
@@ -2652,6 +2732,8 @@ function showToast(msg, type = 'info') {
       
       sidebarUser.textContent = user.name;
       sidebarRole.textContent = user.role;
+      applyRoleNavigation(user);
+      updateRoleBasedUI(user);
     }
   }
 
@@ -2819,7 +2901,7 @@ function enterApp() {
     formData.append('user_id', user.user_id);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/upload-profile-image`, {
+      const response = await authFetch(`${API_BASE_URL}/upload-profile-image`, {
         method: 'POST',
         body: formData
       });
@@ -2941,23 +3023,11 @@ function navigate(e) {
     const view = target.dataset.view;
     if (!view) return;
 
-    getCurrentUser().then(user => {
+    const user = currentUserData;
         if (!user) return;
-
-        // Check if user has admin privileges
-        const isSystemAdmin = user.role === "system_admin";
-        const isDepartmentAdmin = user.role === "department_admin";
-        const isAdmin = isSystemAdmin || isDepartmentAdmin;
-        
-        // System admin only sections
-        if (["dashboard", "userMgmt", "settings"].includes(view) && !isSystemAdmin) {
-            showToast("Access denied. System Admin only.");
-            return;
-        }
-        
-        // Department admin can access some sections but not user management
-        if (view === "userMgmt" && !isSystemAdmin) {
-            showToast("Access denied. System Admin only.");
+    const allowedViews = getAllowedViewsForRole(user.role);
+    if (!allowedViews.includes(view)) {
+        showToast("Access denied for your role.", "error");
             return;
         }
 
@@ -2975,7 +3045,6 @@ function navigate(e) {
             document.getElementById("sidebar").classList.remove("active");
             document.getElementById("overlay").classList.remove("active");
         }
-    });
 }
 
 function goHome() {
@@ -2991,41 +3060,22 @@ function goHome() {
 }
 
   async function renderCurrentView() {
-    document.querySelectorAll(".view").forEach((v) => (v.style.display = "none"));
-    const el = document.getElementById(currentView);
-    if (el) el.style.display = "block";
-
-    const user = await getCurrentUser();
+    const user = currentUserData || await getCurrentUser();
     if (!user) return;
-    
-    // Check if user has admin privileges (system_admin or department_admin)
-    const isSystemAdmin = user.role === "system_admin";
-    const isDepartmentAdmin = user.role === "department_admin";
-    const isAdmin = isSystemAdmin || isDepartmentAdmin;
-    
-    // System admin only sections
-    if (["dashboard", "userMgmt", "settings"].includes(currentView) && !isSystemAdmin) {
-        showToast("Access denied. System Admin only.");
-        currentView = "library";
+    currentUserData = user;
+    applyRoleNavigation(user);
+
+    const allowedViews = getAllowedViewsForRole(user.role);
+    if (!allowedViews.includes(currentView)) {
+      currentView = allowedViews.includes("library") ? "library" : allowedViews[0];
         document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
-        document.querySelector('.nav-item[data-view="library"]').classList.add("active");
-        document.getElementById("library").style.display = "block";
+      const navItem = document.querySelector(`.nav-item[data-view="${currentView}"]`);
+      if (navItem) navItem.classList.add("active");
     }
-    
-    // Show/hide navigation items based on role
-    if (!isSystemAdmin) {
-      // Hide system admin only sections
-      const systemAdminNavItems = document.querySelectorAll('[data-view="userMgmt"], [data-view="dashboard"], [data-view="settings"]');
-      systemAdminNavItems.forEach(item => {
-        if (item) item.style.display = "none";
-      });
-    } else {
-      // Show system admin sections
-      const systemAdminNavItems = document.querySelectorAll('[data-view="userMgmt"], [data-view="dashboard"], [data-view="settings"]');
-      systemAdminNavItems.forEach(item => {
-        if (item) item.style.display = "flex";
-      });
-    }
+
+    document.querySelectorAll(".view").forEach((v) => {
+      v.style.display = v.id === currentView ? "block" : "none";
+    });
 
     if (currentView === "dashboard") await renderDashboard();
     if (currentView === "library") await renderFiles();
@@ -3048,6 +3098,15 @@ function goHome() {
     if (["zip", "rar", "7z"].includes(ext)) return "🗜️";
     if (ext === "txt") return "📄";
     return "📁";
+  }
+
+  function getPermissionLabel(permission) {
+    if (!permission) return "";
+    if (permission === "owner") return "Owner";
+    if (permission === "admin") return "Administrator";
+    if (permission === "editor") return "Editor";
+    if (permission === "viewer") return "Viewer";
+    return permission;
   }
 
   // File Management
@@ -3334,7 +3393,7 @@ async function uploadSingleFile(file, userId, workspaceIds, categoryId, departme
     if (departmentId) formData.append('department_id', departmentId);
     if (sendEmail) formData.append('send_email', 'true');
 
-    const response = await fetch(`${API_BASE_URL}/upload-file`, {
+    const response = await authFetch(`${API_BASE_URL}/upload-file`, {
         method: 'POST',
         body: formData
     });
@@ -3391,16 +3450,8 @@ async function renderFiles() {
         const sort = document.getElementById("sortFiles")?.value || "new";
         
         // Get current user for visibility filtering
-        const currentUser = await getCurrentUser();
-    
     // Only show active files (not archived or deleted)
-        // Users can only see files they uploaded unless shared
-        let filteredFiles = uniqueFiles.filter(f => {
-          if (f.status !== 'active') return false;
-          // Show file if user uploaded it OR if it's shared
-          if (!currentUser) return false;
-          return f.user_id === currentUser.user_id || f.shared === true || f.shared === 1;
-        });
+        let filteredFiles = uniqueFiles.filter(f => f.status === 'active');
     
     if (filter) {
       filteredFiles = filteredFiles.filter(f => 
@@ -3408,9 +3459,10 @@ async function renderFiles() {
       );
     }
     
-    if (sort === "new") filteredFiles.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    if (sort === "old") filteredFiles.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    if (sort === "name") filteredFiles.sort((a, b) => a.name.localeCompare(b.name));
+            if (sort === "new") filteredFiles.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            if (sort === "old") filteredFiles.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            if (sort === "name" || sort === "name_asc") filteredFiles.sort((a, b) => a.name.localeCompare(b.name));
+            if (sort === "name_desc") filteredFiles.sort((a, b) => b.name.localeCompare(a.name));
 
     if (!filteredFiles.length) {
       grid.innerHTML = '<div class="card small-muted" style="text-align:center;padding:40px">No documents found</div>';
@@ -3422,6 +3474,9 @@ async function renderFiles() {
       div.className = "doc-adaptive";
       div.setAttribute("data-file-id", f.file_id);
       div.onclick = () => openFilePreview(f.file_id);
+      const accessLabel = getPermissionLabel(f.current_user_permission);
+      const canEdit = !!f.can_edit;
+      const canManageShare = ['owner', 'admin'].includes(f.current_user_permission);
       div.innerHTML = `
         <input type="checkbox" class="doc-checkbox" data-file-id="${f.file_id}" 
                onclick="event.stopPropagation(); updateBulkActionsBar()" 
@@ -3431,13 +3486,18 @@ async function renderFiles() {
           <div class="doc-info">
             <div class="doc-name" onclick="event.stopPropagation(); startRenameFile(${f.file_id}, this)">${f.name}</div>
             <div class="doc-meta">${(f.size / 1024) | 0} KB • ${new Date(f.created_at).toLocaleString()}</div>
+            ${accessLabel ? `<div class="small-muted">Access: ${accessLabel}</div>` : ''}
           </div>
         </div>
         <div class="doc-actions">
+    ${canEdit ? `
+      <button class="icon-btn" title="Edit Online" onclick="event.stopPropagation(); openFileEditor(${f.file_id})">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </button>` : ''}
     <button class="icon-btn" title="Rename" onclick="event.stopPropagation(); startRenameFileFromButton(${f.file_id})">
         <i class="fa-solid fa-pen"></i>
     </button>
-    <button class="icon-btn" onclick="event.stopPropagation(); toggleShare(${f.file_id})">
+    <button class="icon-btn" ${canManageShare ? '' : 'style="opacity:0.4;cursor:not-allowed"'} ${canManageShare ? `onclick="event.stopPropagation(); openFileShareModal(${f.file_id})"` : 'onclick="event.stopPropagation();"'} title="${canManageShare ? 'Manage Sharing' : 'Shared access (view only)'}">
         ${f.shared ? '<i class="fa-solid fa-link"></i>' : '<i class="fa-regular fa-circle"></i>'}
     </button>
     <button class="icon-btn" onclick="event.stopPropagation(); downloadFile(${f.file_id})">
@@ -3516,6 +3576,13 @@ async function debugFile(fileId) {
       return;
     }
     
+    const canManageShare = ['owner', 'admin'].includes(file.current_user_permission);
+    if (!canManageShare) {
+      showToast("You do not have permission to manage sharing for this file.", "error");
+      return;
+    }
+    const canEditFile = !!file.can_edit;
+    
     // Get existing shares
     const existingShares = await apiCall(`/files/${fileId}/shares`) || [];
     const users = await getAllUsers();
@@ -3574,9 +3641,9 @@ async function debugFile(fileId) {
             <div style="font-weight:600;color:var(--text);margin-bottom:4px">
               <i class="fa-solid fa-edit"></i> Edit File
             </div>
-            <div class="small-muted">Convert and edit this file collaboratively</div>
+            <div class="small-muted">${canEditFile ? 'Convert and edit this file collaboratively' : 'You currently have view-only access to this file.'}</div>
           </div>
-          <button class="btn-primary" onclick="openFileEditor(${fileId})" style="flex-shrink:0">
+          <button class="${canEditFile ? 'btn-primary' : 'btn-secondary'}" ${canEditFile ? '' : 'disabled'} onclick="${canEditFile ? `openFileEditor(${fileId})` : ''}" style="flex-shrink:0">
             <i class="fa-solid fa-pen"></i> Edit
           </button>
         </div>
@@ -3775,18 +3842,14 @@ async function debugFile(fileId) {
       return;
     }
     
-    // Check if file is editable (text-based files)
     const editableExtensions = ['.txt', '.md', '.html', '.css', '.js', '.json', '.xml', '.csv'];
+  const convertedExtensions = ['.pdf', '.docx'];
     const fileExt = '.' + file.name.split('.').pop().toLowerCase();
     const isEditable = editableExtensions.includes(fileExt);
-    
-    if (!isEditable) {
-      // For non-editable files, offer conversion or download
-      if (confirm(`This file type (${fileExt}) cannot be edited directly. Would you like to download it or convert it to an editable format?`)) {
-        // In a real implementation, you would convert the file here
-        showToast("File conversion feature coming soon. For now, please download and edit manually.", "info");
-        downloadFile(fileId);
-      }
+  const requiresConversion = convertedExtensions.includes(fileExt);
+  
+  if (!isEditable && !requiresConversion) {
+    showToast(`"${file.name}" cannot be edited online. Please download to modify.`, "error");
       return;
     }
     
@@ -3806,6 +3869,9 @@ async function debugFile(fileId) {
       </div>
     </h3>
     <div style="display:flex;flex-direction:column;gap:16px;height:calc(90vh - 100px);">
+      ${requiresConversion ? `<div class="small-muted" style="background:var(--accent-light);padding:10px;border-radius:6px">
+        <i class="fa-solid fa-circle-info"></i> This ${fileExt.toUpperCase().replace('.','')} file has been converted to plain text for editing. Formatting will be regenerated when you save.
+      </div>` : ''}
       <div style="flex:1;display:flex;flex-direction:column;min-height:0">
         <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
           <button class="btn-secondary" onclick="saveFileEdit(${fileId})" style="flex-shrink:0">
@@ -3877,14 +3943,14 @@ async function debugFile(fileId) {
         await renderFiles();
       } else {
         if (statusElement) {
-          statusElement.innerHTML = '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--error)"></i><span>Error</span>';
+          statusElement.innerHTML = '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--danger)"></i><span>Error</span>';
         }
         showToast(result?.error || "Failed to save file", "error");
       }
     } catch (error) {
       console.error("Error saving file:", error);
       if (statusElement) {
-        statusElement.innerHTML = '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--error)"></i><span>Error</span>';
+        statusElement.innerHTML = '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--danger)"></i><span>Error</span>';
       }
       showToast("Failed to save file. Please try again.", "error");
     }
@@ -4043,20 +4109,7 @@ async function debugFile(fileId) {
 
   async function performRename(fileId, newName, originalName, inputElement, isOverwrite = false) {
     try {
-      // Call backend API to rename file
-      const response = await fetch(`${API_BASE_URL}/files/${fileId}/rename`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ new_name: newName })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to rename file');
-      }
+      await renameFileRequest(fileId, newName);
 
       // Update the UI
       const nameElement = document.createElement('div');
@@ -4098,6 +4151,22 @@ async function debugFile(fileId) {
     }
   }
 
+async function renameFileRequest(fileId, newName) {
+  const response = await authFetch(`${API_BASE_URL}/files/${fileId}/rename`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ new_name: newName })
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result?.error || 'Failed to rename file');
+  }
+  return result;
+}
+
   function cancelRename(inputElement, originalName) {
     const nameElement = document.createElement('div');
     nameElement.className = 'doc-name';
@@ -4117,6 +4186,54 @@ async function debugFile(fileId) {
     
     inputElement.replaceWith(nameElement);
   }
+
+function openRenameFromPreview(fileId, currentName) {
+  closeModal();
+  const safeName = currentName.replace(/"/g, '&quot;');
+  openModal(`<h3>Rename File</h3>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="form-row">
+        <label>New Filename</label>
+        <input id="previewRenameInput" value="${safeName}" placeholder="Enter new filename"/>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end">
+        <button class="btn-secondary" onclick="closeModal()">
+          <i class="fa-solid fa-xmark"></i> Cancel
+        </button>
+        <button onclick="confirmPreviewRename(${fileId}, '${currentName.replace(/'/g, "\\'")}')">
+          <i class="fa-solid fa-check"></i> Rename
+        </button>
+      </div>
+    </div>`);
+}
+
+async function confirmPreviewRename(fileId, originalName) {
+  const input = document.getElementById("previewRenameInput");
+  if (!input) return;
+  const newName = input.value.trim();
+  if (!newName) {
+    showToast("Filename cannot be empty", "error");
+    return;
+  }
+  try {
+    await renameFileRequest(fileId, newName);
+    showToast("File renamed successfully", "success");
+    closeModal();
+    await renderFiles();
+    await refreshStats();
+    const currentUser = await getCurrentUser();
+    if (currentUser) {
+      await logActivity({
+        user_id: currentUser.user_id,
+        activity: `Renamed file from "${originalName}" to "${newName}"`
+      });
+    }
+    await openFilePreview(fileId);
+  } catch (error) {
+    console.error("Preview rename error:", error);
+    showToast(error.message || "Failed to rename file", "error");
+  }
+}
 
   // Start rename from edit button
   async function startRenameFileFromButton(fileId) {
@@ -4231,7 +4348,7 @@ async function debugFile(fileId) {
       }
     }
         
-        const response = await fetch(`${API_BASE_URL}/download-file/${fileId}`);
+        const response = await authFetch(`${API_BASE_URL}/download-file/${fileId}`);
         
         if (!response.ok) {
             const error = await response.json();
@@ -4483,7 +4600,7 @@ async function confirmDownload(fileId) {
         showToast('Preparing download...', 'info');
         closeModal();
         
-        const response = await fetch(`${API_BASE_URL}/download-file/${fileId}`);
+        const response = await authFetch(`${API_BASE_URL}/download-file/${fileId}`);
         
         if (!response.ok) {
             const error = await response.json();
@@ -4696,7 +4813,7 @@ async function openAddToWorkspaceModal(fileId) {
 // to get file workspaces
 async function getFileWorkspaces(fileId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/files/${fileId}/workspaces`);
+        const response = await authFetch(`${API_BASE_URL}/files/${fileId}/workspaces`);
         if (response.ok) {
             return await response.json();
         }
@@ -4806,7 +4923,7 @@ async function updateFileWorkspaces(fileId) {
 // Add this new function for bulk updates
 async function updateFileWorkspacesBulk(fileId, workspaceIds) {
     try {
-        const response = await fetch(`${API_BASE_URL}/files/${fileId}/update-workspaces`, {
+        const response = await authFetch(`${API_BASE_URL}/files/${fileId}/update-workspaces`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -4829,7 +4946,7 @@ async function updateFileWorkspacesBulk(fileId, workspaceIds) {
 // Add this new function
 async function addFileToWorkspace(fileId, workspaceId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/files/${fileId}/add-to-workspace`, {
+        const response = await authFetch(`${API_BASE_URL}/files/${fileId}/add-to-workspace`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -4862,44 +4979,37 @@ async function openFilePreview(fileId) {
     let previewType = 'info';
 
     try {
-        // Fetch actual file preview from server
-        const response = await fetch(`${API_BASE_URL}/file-preview/${fileId}`);
+        const response = await authFetch(`${API_BASE_URL}/file-preview/${fileId}`);
         
         if (response.ok) {
-            const contentType = response.headers.get('content-type');
+            const contentType = response.headers.get('content-type') || '';
             
-            if (contentType && contentType.startsWith('image/')) {
-                // Handle image preview
-                const blob = await response.blob();
-                const imageUrl = URL.createObjectURL(blob);
-                previewContent = `<img src="${imageUrl}" alt="${file.original_name || file.name}" style="max-width:100%; max-height:400px; border-radius:8px;">`;
-                previewType = 'image';
-            } else if (contentType && contentType.startsWith('application/pdf')) {
-                // Handle PDF preview
-                const blob = await response.blob();
-                const pdfUrl = URL.createObjectURL(blob);
-                previewContent = `<embed src="${pdfUrl}" type="application/pdf" width="100%" height="500px" />`;
-                previewType = 'pdf';
-            } else if (contentType && (contentType.includes('word') || contentType.includes('document'))) {
-                // Handle DOCX files - show text content
+            if (contentType.includes('application/json')) {
                 const result = await response.json();
-                if (result.type === 'text') {
-                    previewContent = `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0; color: var(--text); background: var(--bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">${result.content}</pre>`;
-                    previewType = 'text';
-                } else {
-                    previewContent = `<div class="small-muted" style="text-align:center;padding:40px">Preview not available for DOCX files in this view</div>`;
-                    previewType = 'unsupported';
-                }
-            } else {
-                // Handle text content
-                const result = await response.json();
-                if (result.type === 'text') {
+                if (result.type === 'html') {
+                    previewContent = `<div class="rich-preview">${result.content}</div>`;
+                    previewType = 'html';
+                } else if (result.type === 'text') {
                     previewContent = `<pre style="white-space: pre-wrap; font-family: inherit; margin: 0; color: var(--text); background: var(--bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">${result.content}</pre>`;
                     previewType = 'text';
                 } else {
                     previewContent = `<div class="small-muted" style="text-align:center;padding:40px">${result.message || 'Preview not available for this file type'}</div>`;
                     previewType = 'unsupported';
                 }
+            } else if (contentType.startsWith('image/')) {
+                const blob = await response.blob();
+                const imageUrl = URL.createObjectURL(blob);
+                previewContent = `<img src="${imageUrl}" alt="${file.original_name || file.name}" style="max-width:100%; max-height:400px; border-radius:8px;">`;
+                previewType = 'image';
+            } else if (contentType.startsWith('application/pdf')) {
+                const blob = await response.blob();
+                const pdfUrl = URL.createObjectURL(blob);
+                previewContent = `<embed src="${pdfUrl}" type="application/pdf" width="100%" height="500px" />`;
+                previewType = 'pdf';
+            } else {
+                const result = await response.json().catch(() => ({}));
+                previewContent = `<div class="small-muted" style="text-align:center;padding:40px">${result.message || 'Preview not available for this file type'}</div>`;
+                previewType = 'unsupported';
             }
         } else {
             throw new Error('Preview not available');
@@ -4971,6 +5081,9 @@ async function openFilePreview(fileId) {
   </div>
 
         <div class="file-preview-actions">
+          <button class="btn-secondary" onclick="openRenameFromPreview(${file.file_id}, '${(file.original_name || file.name).replace(/'/g, "\\'")}')">
+            <i class="fa-solid fa-i-cursor"></i> Rename
+          </button>
           <button onclick="downloadFile(${file.file_id})">
             <i class="fa-solid fa-download"></i> Download
           </button>
@@ -4997,7 +5110,7 @@ async function confirmArchiveFile(fileId) {
     try {
         showToast("Archiving file...", "info");
         
-        const response = await fetch(`${API_BASE_URL}/files/${fileId}/archive`, {
+        const response = await authFetch(`${API_BASE_URL}/files/${fileId}/archive`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -5032,9 +5145,21 @@ async function openCreateWorkspace() {
     const currentUser = await getCurrentUser();
     
     if (!users || !currentUser) return;
+    if (currentUser.role === "staff") {
+        showToast("You do not have permission to create workspaces.", "error");
+        return;
+    }
+
+    let allowedUsers = users;
+    if (currentUser.role === "department_admin") {
+        allowedUsers = users.filter(u => u.department_id === currentUser.department_id && u.role === "staff");
+    }
+    if (!allowedUsers.find(u => u.user_id === currentUser.user_id)) {
+        allowedUsers = [...allowedUsers, currentUser];
+    }
 
     // Show ALL users including current user
-    const userOptions = users
+    const userOptions = allowedUsers
         .map(u => `
             <div class="multi-select-option" data-id="${u.user_id}">
                 <div class="member-avatar" style="width:24px;height:24px;font-size:10px">
@@ -5103,26 +5228,31 @@ function filterMemberOptions() {
 }
 
 function addMemberToWorkspace(memberId) {
-    const users = getAllUsers().then(users => {
+    Promise.all([getAllUsers(), getCurrentUser()]).then(([users, currentUser]) => {
         const user = users.find(u => u.user_id == memberId);
-        if (!user) return;
+        if (!user || !currentUser) return;
+
+        if (currentUser.role === "department_admin" && (user.department_id !== currentUser.department_id || user.role !== "staff")) {
+            showToast("You can only add staff from your department.", "error");
+            return;
+        }
 
         const selectedContainer = document.getElementById("selectedMembers");
         const existing = selectedContainer.querySelector(`[data-id="${memberId}"]`);
         if (existing) return;
 
+        const isCurrentUser = user.user_id === currentUser.user_id;
         const memberEl = document.createElement("div");
         memberEl.className = "selected-member";
         memberEl.setAttribute("data-id", memberId);
         memberEl.innerHTML = `
-            ${user.name} ${user.user_id == (getCurrentUser().then(u => u.user_id) || user.user_id) ? '(You)' : ''}
+            ${user.name} ${isCurrentUser ? '(You)' : ''}
             <button class="remove-member" onclick="removeMemberFromWorkspace('${memberId}')">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         `;
         selectedContainer.appendChild(memberEl);
 
-        // Clear search and hide dropdown
         document.getElementById("ws_member_search").value = "";
         document.getElementById("memberDropdown").classList.remove("active");
     });
@@ -5192,9 +5322,21 @@ async function openEditWorkspace(workspaceId) {
 
     const users = await getAllUsers();
     const currentUser = await getCurrentUser();
+    if (!currentUser) return;
+    let allowedUsers = users;
+    if (currentUser.role === "department_admin") {
+        allowedUsers = users.filter(u => u.department_id === currentUser.department_id && u.role === "staff");
+        if (!allowedUsers.find(u => u.user_id === currentUser.user_id)) {
+            allowedUsers = [...allowedUsers, currentUser];
+        }
+    }
+    if (currentUser.role === "staff") {
+        showToast("You do not have permission to edit workspaces.", "error");
+        return;
+    }
 
     // Show ALL users including current user
-    const userOptions = users
+    const userOptions = allowedUsers
         .map(u => `
             <div class="multi-select-option" data-id="${u.user_id}">
                 <div class="member-avatar" style="width:24px;height:24px;font-size:10px">
@@ -5206,8 +5348,9 @@ async function openEditWorkspace(workspaceId) {
 
     // Create selected members HTML - allow removing anyone including yourself
     const selectedMembersHTML = (workspace.members || [])
+        .filter(memberId => allowedUsers.some(u => u.user_id == memberId))
         .map(memberId => {
-            const user = users.find(u => u.user_id == memberId);
+            const user = allowedUsers.find(u => u.user_id == memberId) || users.find(u => u.user_id == memberId);
             if (!user) return '';
             const isCurrentUser = user.user_id === currentUser.user_id;
             return `
@@ -5311,9 +5454,14 @@ function filterEditMemberOptions() {
 }
 
 function addMemberToEditWorkspace(memberId) {
-    const users = getAllUsers().then(users => {
+    Promise.all([getAllUsers(), getCurrentUser()]).then(([users, currentUser]) => {
         const user = users.find(u => u.user_id == memberId);
-        if (!user) return;
+        if (!user || !currentUser) return;
+
+        if (currentUser.role === "department_admin" && (user.department_id !== currentUser.department_id || user.role !== "staff")) {
+            showToast("You can only add staff from your department.", "error");
+            return;
+        }
 
         const selectedContainer = document.getElementById("editSelectedMembers");
         if (!selectedContainer) return;
@@ -5321,35 +5469,30 @@ function addMemberToEditWorkspace(memberId) {
         const existing = selectedContainer.querySelector(`[data-id="${memberId}"]`);
         if (existing) return;
 
-        const currentUser = getCurrentUser().then(currentUser => {
-            const memberEl = document.createElement("div");
-            memberEl.className = "selected-member";
-            memberEl.setAttribute("data-id", memberId);
-            memberEl.innerHTML = `
-                ${user.name} ${user.user_id === currentUser.user_id ? '(You)' : ''}
-                <button class="remove-member" onclick="removeMemberFromEditWorkspace('${memberId}')">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            `;
-            selectedContainer.appendChild(memberEl);
+        const memberEl = document.createElement("div");
+        memberEl.className = "selected-member";
+        memberEl.setAttribute("data-id", memberId);
+        memberEl.innerHTML = `
+            ${user.name} ${user.user_id === currentUser.user_id ? '(You)' : ''}
+            <button class="remove-member" onclick="removeMemberFromEditWorkspace('${memberId}')">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+        selectedContainer.appendChild(memberEl);
 
-            // Hide the option from dropdown
-            const option = document.querySelector(
-                `#editMemberDropdown .multi-select-option[data-id="${memberId}"]`
-            );
-            if (option) {
-                option.style.display = "none";
-            }
+        const option = document.querySelector(`#editMemberDropdown .multi-select-option[data-id="${memberId}"]`);
+        if (option) {
+            option.style.display = "none";
+        }
 
-            const searchInput = document.getElementById("ew_member_search");
-            if (searchInput) {
-                searchInput.value = "";
-            }
-            const dropdown = document.getElementById("editMemberDropdown");
-            if (dropdown) {
-                dropdown.classList.remove("active");
-            }
-        });
+        const searchInput = document.getElementById("ew_member_search");
+        if (searchInput) {
+            searchInput.value = "";
+        }
+        const dropdown = document.getElementById("editMemberDropdown");
+        if (dropdown) {
+            dropdown.classList.remove("active");
+        }
     });
 }
 
@@ -5489,15 +5632,20 @@ async function renderWorkspaces() {
     
     const workspaces = await getAllWorkspaces();
     const users = await getAllUsers();
+    const currentUser = currentUserData || await getCurrentUser();
+    const visibleWorkspaces = (workspaces || []).filter((w) => {
+      const members = Array.isArray(w.members) ? w.members : [];
+      return w.user_id === currentUser?.user_id || members.includes(currentUser?.user_id);
+    });
 
-    if (!workspaces || workspaces.length === 0) {
+    if (!visibleWorkspaces || visibleWorkspaces.length === 0) {
       list.innerHTML = '<div class="card small-muted" style="text-align:center;padding:40px">No workspaces yet</div>';
       return;
     }
 
-    console.log(`✅ DEBUG: Rendering ${workspaces.length} workspaces`);
+    console.log(`✅ DEBUG: Rendering ${visibleWorkspaces.length} workspaces`);
 
-    for (const w of workspaces) {
+    for (const w of visibleWorkspaces) {
       // Get member details
       const memberDetails = await Promise.all(
         (w.members || []).map(async memberId => {
@@ -5571,8 +5719,17 @@ async function renderWorkspaces() {
     console.log(`🚀 DEBUG: Rendering workspace detail for workspace ${currentWorkspaceId}`);
 
     const workspaces = await getAllWorkspaces();
-    const workspace = workspaces.find(w => w.workspace_id == currentWorkspaceId);
-    if (!workspace) return;
+    const currentUser = currentUserData || await getCurrentUser();
+    const allowedWorkspaces = (workspaces || []).filter((w) => {
+      const members = Array.isArray(w.members) ? w.members : [];
+      return w.user_id === currentUser?.user_id || members.includes(currentUser?.user_id);
+    });
+    const workspace = allowedWorkspaces.find(w => w.workspace_id == currentWorkspaceId);
+    if (!workspace) {
+      showToast("You do not have access to this workspace.", "error");
+      goToWorkspaces();
+      return;
+    }
 
     // Get files for this workspace using the NEW method
     const workspaceFiles = await getWorkspaceFiles(currentWorkspaceId);
@@ -5767,7 +5924,7 @@ async function renderWorkspaceFiles() {
 async function getWorkspaceFiles(workspaceId) {
     try {
         console.log(`🚀 DEBUG: Getting files for workspace ${workspaceId}`);
-        const response = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/files`);
+        const response = await authFetch(`${API_BASE_URL}/workspaces/${workspaceId}/files`);
         if (response.ok) {
             const files = await response.json();
             console.log(`✅ DEBUG: Got ${files.length} files for workspace ${workspaceId}`);
@@ -5867,6 +6024,12 @@ async function renderUsers() {
   const departments = await getAllDepartments();
   const currentUser = await getCurrentUser();
   
+  if (currentUser?.role === "staff") {
+    tbody.innerHTML = '<tr><td colspan="7" class="small-muted" style="text-align:center;padding:20px">Access denied.</td></tr>';
+    showToast("Access denied.", "error");
+    return;
+  }
+  
   // Populate department filter
   const deptFilter = document.getElementById("filterUserDept");
   if (deptFilter) {
@@ -5883,10 +6046,13 @@ async function renderUsers() {
   const filterDept = document.getElementById("filterUserDept")?.value || "";
   const sortBy = document.getElementById("sortUsers")?.value || "id";
   
-  // Calculate statistics
-  const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.status === "active").length;
-  const archivedUsers = users.filter(u => u.status === "archived").length;
+  // Calculate statistics scoped to current role
+  const statsScope = currentUser && currentUser.role === "department_admin"
+    ? users.filter(u => u.department_id === currentUser.department_id && u.role === "staff")
+    : users;
+  const totalUsers = statsScope.length;
+  const activeUsers = statsScope.filter(u => u.status === "active").length;
+  const archivedUsers = statsScope.filter(u => u.status === "archived").length;
   
   const totalCountEl = document.getElementById("totalUsersCount");
   const activeCountEl = document.getElementById("activeUsersCount");
@@ -5907,6 +6073,16 @@ async function renderUsers() {
   
   // Apply filters
   let filteredUsers = uniqueUsers;
+  
+  if (currentUser && currentUser.role === "department_admin") {
+    filteredUsers = filteredUsers.filter(u => u.department_id === currentUser.department_id && u.role === "staff");
+    if (deptFilter) {
+      deptFilter.value = currentUser.department_id;
+      deptFilter.disabled = true;
+    }
+  } else if (deptFilter) {
+    deptFilter.disabled = false;
+  }
   
   if (search) {
     filteredUsers = filteredUsers.filter(u => 
@@ -6764,7 +6940,7 @@ async function exportToDOCX(users, departments, filename) {
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     });
 
-    const exportFileName = filename || `User_Management_Report_${new Date().toISOString().split('T')[0]}`;
+  const exportFileName = filename || `User_Management_Report_${new Date().toISOString().split('T')[0]}`;
     triggerReportDownload(blob, `${exportFileName}.docx`);
   } catch (error) {
     console.error('DOCX export error:', error);
@@ -7277,6 +7453,7 @@ async function modalAddUser() {
     const out = document.getElementById("departmentsList");
     const departments = await getAllDepartments();
     const users = await getAllUsers();
+    const currentUser = await getCurrentUser();
     
     out.innerHTML = "";
     
@@ -7284,10 +7461,22 @@ async function modalAddUser() {
       out.innerHTML = '<div class="card small-muted" style="text-align:center;padding:40px">No departments</div>';
       return;
     }
+
+    let visibleDepartments = departments;
+    if (currentUser?.role === "department_admin") {
+      visibleDepartments = departments.filter(d => d.department_id === currentUser.department_id);
+    }
     
-    departments.forEach((d) => {
-      // Get users assigned to this department
-      const deptUsers = users.filter(u => u.department_id == d.department_id && u.status === 'active');
+    if (!visibleDepartments.length) {
+      out.innerHTML = '<div class="card small-muted" style="text-align:center;padding:40px">No departments available.</div>';
+      return;
+    }
+    
+    visibleDepartments.forEach((d) => {
+      let deptUsers = users.filter(u => u.department_id == d.department_id && u.status === 'active');
+      if (currentUser?.role === "department_admin") {
+        deptUsers = deptUsers.filter(u => u.role === "staff");
+      }
       
       const card = document.createElement("div");
       card.className = "card";
@@ -7341,9 +7530,23 @@ async function modalAddUser() {
     const users = await getAllUsers();
     const departments = await getAllDepartments();
     const dept = departments.find(d => d.department_id == departmentId);
-    const currentDeptUsers = users.filter(u => u.department_id == departmentId && u.status === 'active');
-    const availableUsers = users.filter(u => u.status === 'active' && u.department_id != departmentId);
     const currentUser = await getCurrentUser();
+    if (!dept) {
+      showToast("Department not found", "error");
+      return;
+    }
+    if (currentUser?.role === "department_admin" && currentUser.department_id != departmentId) {
+      showToast("You can only manage your own department.", "error");
+      return;
+    }
+    let currentDeptUsers = users.filter(u => u.department_id == departmentId && u.status === 'active');
+    if (currentUser?.role === "department_admin") {
+      currentDeptUsers = currentDeptUsers.filter(u => u.role === "staff");
+    }
+    let availableUsers = users.filter(u => u.status === 'active' && u.department_id != departmentId);
+    if (currentUser?.role === "department_admin") {
+      availableUsers = users.filter(u => u.status === 'active' && u.department_id === departmentId && u.role === "staff");
+    }
     
     const userOptions = availableUsers
       .map(u => `
@@ -7798,34 +8001,99 @@ async function renderArchives() {
     const out = document.getElementById("archivesList");
     out.innerHTML = "";
     
-    const filterType = document.getElementById("archiveFilterType")?.value || "all";
+    const filterSelect = document.getElementById("archiveFilterType");
+    const sortSelect = document.getElementById("archiveSortOrder");
+    const currentUser = await getCurrentUser();
+    const isStaff = currentUser?.role === "staff";
+    const isDeptAdmin = currentUser?.role === "department_admin";
+    
+    let filterType = filterSelect?.value || "all";
+    if (isStaff) {
+        filterType = "files";
+        if (filterSelect) {
+            filterSelect.value = "files";
+            filterSelect.disabled = true;
+            Array.from(filterSelect.options || []).forEach(opt => {
+                if (opt.value !== "files") opt.style.display = "none";
+            });
+        }
+    } else if (filterSelect) {
+        filterSelect.disabled = false;
+        Array.from(filterSelect.options || []).forEach(opt => opt.style.display = "block");
+    }
+    
+    const sortOrder = sortSelect?.value || "newest";
+    
     const files = await getAllFiles();
     const users = await getAllUsers();
+    const allowedUserIds = currentUser && currentUser.role !== "system_admin"
+        ? new Set(
+            currentUser.role === "department_admin" && currentUser.department_id
+                ? users
+                    .filter(u => u.department_id === currentUser.department_id)
+                    .map(u => u.user_id)
+                : [currentUser.user_id]
+          )
+        : null;
+    if (allowedUserIds && currentUser && !allowedUserIds.has(currentUser.user_id)) {
+        allowedUserIds.add(currentUser.user_id);
+    }
     
-    const archivedFiles = files.filter(f => f.status === "archived");
-    const archivedUsers = users.filter(u => u.status === "archived");
+    let archivedFiles = files.filter(f => f.status === "archived");
+    if (allowedUserIds) {
+        archivedFiles = archivedFiles.filter(f => allowedUserIds.has(f.user_id));
+    }
+    
+    let archivedUsers = users.filter(u => u.status === "archived");
+    if (allowedUserIds) {
+        archivedUsers = archivedUsers.filter(u => allowedUserIds.has(u.user_id));
+    }
     
     let itemsToShow = [];
     
     if (filterType === "files" || filterType === "all") {
-        archivedFiles.forEach(f => {
-            itemsToShow.push({ type: 'file', data: f });
-        });
+        archivedFiles.forEach(f => itemsToShow.push({ type: 'file', data: f }));
     }
     
-    if (filterType === "users" || filterType === "all") {
-        archivedUsers.forEach(u => {
-            itemsToShow.push({ type: 'user', data: u });
-        });
+    if (!isStaff && (filterType === "users" || filterType === "all")) {
+        archivedUsers.forEach(u => itemsToShow.push({ type: 'user', data: u }));
     }
     
     if (!itemsToShow.length) {
         out.innerHTML = '<div class="card small-muted" style="text-align:center;padding:40px">No archived items</div>';
-        document.getElementById("selectAllArchived").checked = false;
-        document.getElementById("bulkRestoreBtn").style.display = "none";
-        document.getElementById("bulkDeleteBtn").style.display = "none";
+        const selectAll = document.getElementById("selectAllArchived");
+        if (selectAll) selectAll.checked = false;
+        const bulkRestoreBtn = document.getElementById("bulkRestoreBtn");
+        const bulkDeleteBtn = document.getElementById("bulkDeleteBtn");
+        if (bulkRestoreBtn) bulkRestoreBtn.style.display = "none";
+        if (bulkDeleteBtn) bulkDeleteBtn.style.display = "none";
         return;
     }
+    
+    const nameValue = (item) => {
+        const value = item?.data?.name || item?.data?.original_name || "";
+        return (value || "").toString().toLowerCase();
+    };
+    
+    const dateValue = (item) => {
+        const data = item.data || {};
+        const dateStr = data.updated_at || data.created_at || data.archived_at || data.deleted_at || data.last_modified;
+        return dateStr ? new Date(dateStr).getTime() : 0;
+    };
+    
+    itemsToShow.sort((a, b) => {
+        if (sortOrder === "oldest") {
+            return dateValue(a) - dateValue(b);
+        }
+        if (sortOrder === "name_asc") {
+            return nameValue(a).localeCompare(nameValue(b));
+        }
+        if (sortOrder === "name_desc") {
+            return nameValue(b).localeCompare(nameValue(a));
+        }
+        // Default newest
+        return dateValue(b) - dateValue(a);
+    });
     
     const departments = await getAllDepartments();
     
@@ -7956,7 +8224,7 @@ async function bulkRestoreArchived() {
     
     for (const fileId of files) {
         try {
-            const response = await fetch(`${API_BASE_URL}/files/${fileId}/restore`, {
+            const response = await authFetch(`${API_BASE_URL}/files/${fileId}/restore`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -7974,7 +8242,7 @@ async function bulkRestoreArchived() {
     
     for (const userId of users) {
         try {
-            const response = await fetch(`${API_BASE_URL}/users/${userId}/restore`, {
+        const response = await authFetch(`${API_BASE_URL}/users/${userId}/restore`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -8234,7 +8502,7 @@ async function restoreFile(fileId) {
     try {
         showToast("Restoring file...", "info");
         
-        const response = await fetch(`${API_BASE_URL}/files/${fileId}/restore`, {
+        const response = await authFetch(`${API_BASE_URL}/files/${fileId}/restore`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -8372,7 +8640,7 @@ async function restoreFile(fileId) {
 
       showToast(`Classifying ${file.name}...`);
 
-      const response = await fetch(`${API_BASE_URL}/classify-document`, {
+      const response = await authFetch(`${API_BASE_URL}/classify-document`, {
         method: "POST",
         body: formData,
       });
@@ -8434,4 +8702,5 @@ async function restoreFile(fileId) {
 </script>
   </body>
 </html>
+
 

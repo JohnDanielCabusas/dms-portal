@@ -11,15 +11,17 @@ import json
 from datetime import datetime
 import hashlib
 import secrets
-# File storage and download routes
-import os
-import tempfile
-import shutil
 from werkzeug.utils import secure_filename
 import requests 
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from docx import Document as DocxDocument
+import pdfplumber
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+import pandas as pd
+from html import escape
 
 app = Flask(__name__)
 CORS(app)
@@ -46,6 +48,30 @@ if not os.path.exists(UPLOAD_FOLDER):
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def normalize_profile_image_token(value):
+    if not value:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    return os.path.basename(value)
+
+def build_profile_image_url(value):
+    if not value:
+        return None
+    if value.startswith('http'):
+        return value
+    if value.startswith('/'):
+        return value
+    return f"/api/uploads/profile_images/{value}"
+
+def serialize_user_record(user):
+    if not user:
+        return user
+    user_copy = dict(user)
+    user_copy['profile_image'] = build_profile_image_url(user_copy.get('profile_image'))
+    return user_copy
 
 def save_uploaded_file(file, user_id, custom_filename=None, allow_overwrite=False):
     try:
@@ -144,6 +170,152 @@ def save_uploaded_file(file, user_id, custom_filename=None, allow_overwrite=Fals
     except Exception as e:
         print(f"Error saving file: {e}")
         return None, None, None, f"File save error: {str(e)}"
+
+def resolve_file_path(file_record):
+    """Return actual file path on disk for a stored file record."""
+    if not file_record:
+        return None
+    
+    stored_path = file_record.get('file_path')
+    if stored_path and os.path.exists(stored_path):
+        return stored_path
+    
+    upload_folder = app.config.get('UPLOAD_FOLDER')
+    target_names = [file_record.get('name'), file_record.get('original_name')]
+    if not upload_folder or not os.path.exists(upload_folder):
+        return None
+    
+    target_names = [name for name in target_names if name]
+    if not target_names:
+        return None
+    
+    for root, dirs, files in os.walk(upload_folder):
+        for f in files:
+            if f in target_names:
+                return os.path.join(root, f)
+    return None
+
+def get_file_extension(file_record):
+    filename = file_record.get('name') or file_record.get('original_name') or ''
+    return os.path.splitext(filename)[1].lower().lstrip('.')
+
+def extract_text_for_editing(file_record, actual_path):
+    """
+    Convert supported file types into plain text for the inline editor.
+    Returns text content or raises ValueError for unsupported formats.
+    """
+    file_type = (file_record.get('type') or get_file_extension(file_record) or '').lower()
+    
+    if file_type in ['txt', 'md', 'html', 'css', 'js', 'json', 'xml', 'csv']:
+        try:
+            with open(actual_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except UnicodeDecodeError:
+            with open(actual_path, 'r', encoding='latin-1') as f:
+                return f.read()
+    
+    if file_type == 'docx':
+        doc = DocxDocument(actual_path)
+        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+    
+    if file_type == 'pdf':
+        with pdfplumber.open(actual_path) as pdf:
+            pages = []
+            for page in pdf.pages:
+                page_text = page.extract_text() or ""
+                pages.append(page_text)
+        text = "\n".join(pages).strip()
+        if not text:
+            raise ValueError("Unable to extract text from PDF for editing.")
+        return text
+    
+    raise ValueError(f'File type ".{file_type}" is not supported for inline editing.')
+
+def save_text_back_to_file(file_record, actual_path, content):
+    """
+    Persist edited text back into the original file type.
+    Supports text, DOCX, and PDF generation.
+    """
+    file_type = (file_record.get('type') or get_file_extension(file_record) or '').lower()
+    
+    if file_type in ['txt', 'md', 'html', 'css', 'js', 'json', 'xml', 'csv']:
+        with open(actual_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return
+    
+    if file_type == 'docx':
+        doc = DocxDocument()
+        for line in content.splitlines():
+            doc.add_paragraph(line)
+        doc.save(actual_path)
+        return
+    
+    if file_type == 'pdf':
+        c = canvas.Canvas(actual_path, pagesize=letter)
+        width, height = letter
+        margin = 72
+        y = height - margin
+        line_height = 14
+        for line in content.splitlines():
+            text_line = line[:180]
+            c.drawString(margin, y, text_line)
+            y -= line_height
+            if y <= margin:
+                c.showPage()
+                y = height - margin
+        c.save()
+        return
+    
+    raise ValueError(f'File type ".{file_type}" cannot be saved through the inline editor.')
+
+def get_request_user():
+    user_id = request.headers.get('X-User-Id')
+    if not user_id:
+        return None
+    try:
+        return DMSDatabase.get_user_by_id(int(user_id))
+    except (ValueError, TypeError):
+        return None
+
+def merge_permission(current, new):
+    order = {'viewer': 1, 'editor': 2, 'owner': 3, 'admin': 4}
+    if current is None:
+        return new
+    return new if order.get(new, 0) > order.get(current, 0) else current
+
+def get_user_file_permission(file_record, user):
+    """
+    Determine the permission level a user has for a specific file.
+    Returns 'owner', 'editor', 'viewer', 'admin', or None if no access.
+    """
+    if not user or not file_record:
+        return None
+    
+    if user['role'] == 'system_admin':
+        return 'admin'
+    
+    if file_record['user_id'] == user['user_id']:
+        return 'owner'
+    
+    share = DatabaseConfig.execute_query(
+        "SELECT permission FROM file_shares WHERE file_id=%s AND shared_with_user_id=%s",
+        (file_record['file_id'], user['user_id']),
+        fetch_one=True
+    )
+    if share:
+        return share.get('permission', 'viewer')
+    
+    dept_id = user.get('department_id')
+    if dept_id:
+        dept_share = DatabaseConfig.execute_query(
+            "SELECT permission FROM file_shares WHERE file_id=%s AND shared_with_department_id=%s",
+            (file_record['file_id'], dept_id),
+            fetch_one=True
+        )
+        if dept_share:
+            return dept_share.get('permission', 'viewer')
+    
+    return None
 
 # Update the upload-file route
 @app.route('/api/upload-file', methods=['POST'])
@@ -339,6 +511,27 @@ def upload_file():
                 print(f"Error in email notification: {str(e)}")
                 # Don't fail the upload if email fails
 
+        # Automatically grant department-level access when a department is specified
+        if department_id:
+            try:
+                dept_id_int = int(department_id)
+                share_exists = DatabaseConfig.execute_query(
+                    "SELECT share_id FROM file_shares WHERE file_id=%s AND shared_with_department_id=%s",
+                    (file_id, dept_id_int),
+                    fetch_one=True
+                )
+                if not share_exists:
+                    share_query = """INSERT INTO file_shares 
+                                     (file_id, shared_with_user_id, shared_with_department_id, permission, shared_by)
+                                     VALUES (%s, %s, %s, %s, %s)"""
+                    DatabaseConfig.execute_query(
+                        share_query,
+                        (file_id, None, dept_id_int, 'viewer', user_id)
+                    )
+                    DMSDatabase.update_file(file_id, {'shared': True})
+            except Exception as share_error:
+                print(f"Department share creation error: {share_error}")
+
         if file_id:
             print(f"DEBUG: File created successfully with ID: {file_id}")
             
@@ -383,28 +576,20 @@ def download_file(file_id):
         if not file_record:
             return jsonify({'error': 'File not found in database'}), 404
         
-        file_path = file_record.get('file_path')
-        print(f"DEBUG: Download requested for file_id {file_id}")
-        print(f"DEBUG: File path from database: {file_path}")
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'error': 'Unauthorized'}), 401
         
-        if not file_path:
-            return jsonify({'error': 'File path not found in database'}), 404
-            
-        if not os.path.exists(file_path):
-            print(f"DEBUG: File not found at path: {file_path}")
-            # Try alternative locations
-            upload_folder = app.config['UPLOAD_FOLDER']
-            
-            # Search recursively in upload folder
-            for root, dirs, files in os.walk(upload_folder):
-                for file in files:
-                    if file == file_record['name'] or file == file_record['original_name']:
-                        file_path = os.path.join(root, file)
-                        print(f"DEBUG: Found file at alternative path: {file_path}")
-                        break
-            
-            if not os.path.exists(file_path):
-                return jsonify({'error': 'File not found on server. Please re-upload the file.'}), 404
+        permission = get_user_file_permission(file_record, request_user)
+        if permission not in ('owner', 'editor', 'admin'):
+            return jsonify({'error': 'Access denied'}), 403
+        
+        file_path = resolve_file_path(file_record)
+        print(f"DEBUG: Download requested for file_id {file_id}")
+        print(f"DEBUG: Resolved file path: {file_path}")
+        
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'error': 'File not found on server. Please re-upload the file.'}), 404
         
         # Use the current stored `name` for download (this is the visible/current filename)
         # Fallback to `original_name` if `name` is missing
@@ -431,25 +616,15 @@ def file_preview(file_id):
         if not file_record:
             return jsonify({'error': 'File not found'}), 404
         
-        # file_path in DB is stored as a hash. Search the upload folder for the actual file.
-        file_path = file_record.get('file_path')
-        actual_file_path = None
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'error': 'Unauthorized'}), 401
         
-        # Try to find the real file by searching for the filename in the upload folder
-        if not file_path or not os.path.exists(file_path):
-            upload_folder = app.config.get('UPLOAD_FOLDER')
-            if upload_folder and os.path.exists(upload_folder):
-                target_names = [file_record.get('name'), file_record.get('original_name')]
-                for root, dirs, files in os.walk(upload_folder):
-                    for f in files:
-                        if f in target_names:
-                            actual_file_path = os.path.join(root, f)
-                            break
-                    if actual_file_path:
-                        break
-        else:
-            actual_file_path = file_path
+        permission = get_user_file_permission(file_record, request_user)
+        if not permission:
+            return jsonify({'error': 'Access denied'}), 403
         
+        actual_file_path = resolve_file_path(file_record)
         if not actual_file_path or not os.path.exists(actual_file_path):
             return jsonify({'error': 'File not found on server'}), 404
 
@@ -493,8 +668,20 @@ def file_preview(file_id):
                 mimetype = image_mimetypes.get(file_type, f'image/{file_type}')
                 return send_file(actual_file_path, mimetype=mimetype, as_attachment=False)
         
-        # For Word documents - convert to PDF for exact visual
-        elif file_type in ['doc', 'docx']:
+        # For DOCX documents - convert to PDF for visual parity
+        elif file_type == 'docx':
+            try:
+                pdf_path = convert_word_to_pdf_visual(actual_file_path, file_type)
+                if pdf_path and os.path.exists(pdf_path):
+                    return send_file(pdf_path, mimetype='application/pdf', as_attachment=False)
+                else:
+                    return create_fallback_preview(actual_file_path, file_type, "Word Document")
+            except Exception as e:
+                print(f"DOCX preview error: {e}")
+                return create_fallback_preview(actual_file_path, file_type, "Word Document")
+        
+        # For legacy DOC files - fall back to PDF conversion
+        elif file_type == 'doc':
             try:
                 pdf_path = convert_word_to_pdf_visual(actual_file_path, file_type)
                 if pdf_path and os.path.exists(pdf_path):
@@ -505,7 +692,7 @@ def file_preview(file_id):
                 print(f"Word to PDF conversion error: {e}")
                 return create_fallback_preview(actual_file_path, file_type, "Word Document")
         
-        # For Excel files - convert to PDF for exact visual
+        # For Excel files - convert to PDF for real preview
         elif file_type in ['xls', 'xlsx']:
             try:
                 pdf_path = convert_excel_to_pdf_visual(actual_file_path, file_type)
@@ -514,7 +701,7 @@ def file_preview(file_id):
                 else:
                     return create_fallback_preview(actual_file_path, file_type, "Excel Spreadsheet")
             except Exception as e:
-                print(f"Excel to PDF conversion error: {e}")
+                print(f"Excel preview error: {e}")
                 return create_fallback_preview(actual_file_path, file_type, "Excel Spreadsheet")
         
         # For PowerPoint files - convert to PDF for exact visual
@@ -863,6 +1050,38 @@ def convert_zip_to_pdf(file_path):
     except Exception as e:
         print(f"ZIP to PDF conversion error: {e}")
         return None
+
+def docx_to_html(path):
+    doc = DocxDocument(path)
+    html_parts = []
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if text:
+            html_parts.append(f"<p>{escape(text)}</p>")
+    if doc.tables:
+        for table in doc.tables:
+            html_parts.append("<table class='preview-table'>")
+            for row in table.rows:
+                html_parts.append("<tr>")
+                for cell in row.cells:
+                    cell_text = escape(cell.text.strip())
+                    html_parts.append(f"<td>{cell_text}</td>")
+                html_parts.append("</tr>")
+            html_parts.append("</table>")
+    if not html_parts:
+        html_parts.append("<p>(Document is empty)</p>")
+    return "".join(html_parts)
+
+def excel_to_html(path):
+    sheets = pd.read_excel(path, sheet_name=None, dtype=str, engine=None)
+    html_parts = []
+    for sheet_name, df in sheets.items():
+        df = df.fillna("")
+        html_parts.append(f"<h4>{escape(str(sheet_name))}</h4>")
+        html_parts.append(df.to_html(classes="preview-table", index=False, escape=True))
+    if not html_parts:
+        html_parts.append("<p>(Workbook is empty)</p>")
+    return "".join(html_parts)
 
 def create_simple_pdf_from_content(file_path, file_type):
     """Create a simple PDF when COM conversion fails"""
@@ -1745,20 +1964,71 @@ This code will expire in 10 minutes."""
         print(f"❌ Email error: {e}")
         return {'success': False, 'message': f'Email error: {str(e)}'}
 
+def send_file_share_email(recipient_email, recipient_name, file_name, permission_label, shared_by_name):
+    """
+    Send an email notification when a file is shared with a user or department.
+    """
+    try:
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        sender_email = "plp.dmshr@gmail.com"
+        sender_password = "thpn ttsr pxcw zchi"
+        
+        message = MIMEMultipart("alternative")
+        message["Subject"] = f"{shared_by_name} shared \"{file_name}\" with you"
+        message["From"] = "DOCUMENT MANAGEMENT SYSTEM <plp.dmshr@gmail.com>"
+        message["To"] = recipient_email
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; padding: 24px; border-radius: 12px;">
+              <h2 style="color:#1d4ed8;margin-top:0;">New file shared with you</h2>
+              <p>Hello {recipient_name or 'colleague'},</p>
+              <p><strong>{shared_by_name}</strong> shared the following file with you:</p>
+              <div style="background:#f8fafc;border-left:4px solid #3b82f6;padding:12px;border-radius:8px;margin:16px 0;">
+                <p style="margin:0;"><strong>File:</strong> {file_name}</p>
+                <p style="margin:4px 0 0 0;"><strong>Permission:</strong> {permission_label.title()}</p>
+              </div>
+              <p>You can open the Document Management System to view or edit the file depending on your access.</p>
+              <p style="margin-top:24px;color:#6b7280;font-size:12px;">This is an automated message from the Document Management System.</p>
+            </div>
+          </body>
+        </html>
+        """
+        text_content = f"""{shared_by_name} shared "{file_name}" with you.
+Permission level: {permission_label.title()}."""
+        
+        message.attach(MIMEText(text_content, "plain"))
+        message.attach(MIMEText(html_content, "html"))
+        
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, recipient_email, message.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Share email error: {e}")
+        return False
+
 @app.route('/api/debug/user/<int:user_id>', methods=['GET'])
 def debug_user(user_id):
     """Debug endpoint to check user data"""
     user = DMSDatabase.get_user_by_id(user_id)
     if user:
+        user_serialized = serialize_user_record(user)
         return jsonify({
             'success': True,
             'user': {
-                'user_id': user['user_id'],
-                'name': user['name'],
-                'email': user['email'],
-                'password': user['password'],  # This will show current password
-                'role': user['role'],
-                'status': user['status']
+                'user_id': user_serialized['user_id'],
+                'name': user_serialized['name'],
+                'email': user_serialized['email'],
+                'password': user_serialized.get('password'),  # This will show current password
+                'role': user_serialized['role'],
+                'status': user_serialized['status'],
+                'profile_image': user_serialized.get('profile_image')
             }
         })
     else:
@@ -1766,8 +2036,9 @@ def debug_user(user_id):
     
 @app.route('/api/users', methods=['GET'])
 def get_users():
-    users = DMSDatabase.get_all_users()
-    return jsonify(users or [])
+    users = DMSDatabase.get_all_users() or []
+    serialized = [serialize_user_record(user) for user in users]
+    return jsonify(serialized)
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
@@ -1787,6 +2058,8 @@ def update_user(user_id):
         # Check if password is being updated
         password = data.get('password')
         
+        profile_image_token = normalize_profile_image_token(data.get('profile_image'))
+
         result = DMSDatabase.update_user(
             user_id, 
             data.get('name'), 
@@ -1794,7 +2067,7 @@ def update_user(user_id):
             data.get('role'),
             data.get('department_id'), 
             data.get('status'), 
-            data.get('profile_image'),
+            profile_image_token,
             password  # Pass password if provided
         )
         
@@ -1867,13 +2140,27 @@ def upload_profile_image():
         
         file.save(file_path)
         
-        # Return relative URL
-        image_url = f"/api/uploads/profile_images/{filename}"
+        # Hash filename for storage and rename file to hashed version
+        image_hash = hash_file_path(file_path)
+        hashed_filename = f"{image_hash}.{file_ext}"
+        hashed_path = os.path.join(upload_folder, hashed_filename)
+        try:
+            if os.path.exists(hashed_path):
+                os.remove(hashed_path)
+            os.rename(file_path, hashed_path)
+            stored_filename = hashed_filename
+        except Exception as rename_error:
+            print(f"Profile image rename error: {rename_error}")
+            stored_filename = filename
+            hashed_path = file_path
         
-        # Update user profile_image in database
-        DMSDatabase.update_user(user_id, None, None, None, None, None, image_url, None)
+        image_token = stored_filename
+        image_url = build_profile_image_url(image_token)
         
-        return jsonify({'success': True, 'image_url': image_url})
+        # Update user profile_image in database using hashed token
+        DMSDatabase.update_user(user_id, None, None, None, None, None, image_token, None)
+        
+        return jsonify({'success': True, 'image_url': image_url, 'image_token': image_token})
         
     except Exception as e:
         print(f"Error uploading profile image: {str(e)}")
@@ -1907,13 +2194,73 @@ def restore_user(user_id):
 
 @app.route('/api/files', methods=['GET'])
 def get_files():
-    # Return ALL files including archived for the frontend to handle filtering
     query = """SELECT f.*, u.name as owner_name, c.name as category_name 
                FROM files f 
                LEFT JOIN users u ON f.user_id = u.user_id 
                LEFT JOIN categories c ON f.category_id = c.category_id"""
-    files = DatabaseConfig.execute_query(query, fetch=True)
-    return jsonify(files or [])
+    files = DatabaseConfig.execute_query(query, fetch=True) or []
+    
+    request_user = get_request_user()
+    if not request_user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    if request_user.get('role') == 'system_admin':
+        annotated = []
+        for file in files:
+            file_copy = dict(file)
+            if request_user:
+                if file_copy['user_id'] == request_user['user_id']:
+                    permission = 'owner'
+                else:
+                    permission = 'admin'
+            else:
+                permission = None
+            file_copy['current_user_permission'] = permission
+            file_copy['can_edit'] = permission in ('owner', 'admin')
+            annotated.append(file_copy)
+        return jsonify(annotated)
+    
+    user_id = request_user['user_id']
+    dept_id = request_user.get('department_id')
+    
+    user_shares = DatabaseConfig.execute_query(
+        "SELECT file_id, permission FROM file_shares WHERE shared_with_user_id = %s",
+        (user_id,),
+        fetch=True
+    ) or []
+    dept_shares = []
+    if dept_id:
+        dept_shares = DatabaseConfig.execute_query(
+            "SELECT file_id, permission FROM file_shares WHERE shared_with_department_id = %s",
+            (dept_id,),
+            fetch=True
+        ) or []
+    
+    user_share_map = {}
+    for row in user_shares:
+        user_share_map[row['file_id']] = merge_permission(user_share_map.get(row['file_id']), row.get('permission', 'viewer'))
+    
+    dept_share_map = {}
+    for row in dept_shares:
+        dept_share_map[row['file_id']] = merge_permission(dept_share_map.get(row['file_id']), row.get('permission', 'viewer'))
+    
+    allowed_files = []
+    for file in files:
+        permission = None
+        if file['user_id'] == user_id:
+            permission = 'owner'
+        elif user_share_map.get(file['file_id']):
+            permission = user_share_map[file['file_id']]
+        elif dept_id and dept_share_map.get(file['file_id']):
+            permission = dept_share_map[file['file_id']]
+        
+        if permission:
+            file_copy = dict(file)
+            file_copy['current_user_permission'] = permission
+            file_copy['can_edit'] = permission in ('owner', 'editor')
+            allowed_files.append(file_copy)
+    
+    return jsonify(allowed_files)
 
 @app.route('/api/all-files', methods=['GET'])
 def get_all_files_including_archived():
@@ -1953,10 +2300,20 @@ def share_file(file_id):
         shared_with_user_id = data.get('shared_with_user_id')
         shared_with_department_id = data.get('shared_with_department_id')
         permission = data.get('permission', 'viewer')
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'success': False, 'error': 'File not found'}), 404
         
-        # Get current user from session or request
-        # For now, we'll use a default or get from request
-        shared_by = data.get('shared_by') or 1  # TODO: Get from session
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
+        request_permission = get_user_file_permission(file_record, request_user)
+        if request_permission not in ('owner', 'admin'):
+            return jsonify({'success': False, 'error': 'You do not have permission to share this file.'}), 403
+        
+        shared_by = data.get('shared_by') or request_user['user_id']
+        shared_by_user = DMSDatabase.get_user_by_id(shared_by) or {}
         
         if not shared_with_user_id and not shared_with_department_id:
             return jsonify({'success': False, 'error': 'Must specify user or department'}), 400
@@ -1985,6 +2342,25 @@ def share_file(file_id):
         
         # Update file shared flag
         DMSDatabase.update_file(file_id, {'shared': True})
+        
+        # Send notification emails
+        notify_targets = []
+        if shared_with_user_id:
+            target_user = DMSDatabase.get_user_by_id(shared_with_user_id)
+            if target_user and target_user.get('email'):
+                notify_targets.append(target_user)
+        elif shared_with_department_id:
+            dept_users = DatabaseConfig.execute_query(
+                "SELECT name, email FROM users WHERE department_id = %s AND status = 'active'",
+                (shared_with_department_id,),
+                fetch=True
+            ) or []
+            notify_targets.extend([u for u in dept_users if u.get('email')])
+        
+        file_name = file_record.get('name') or file_record.get('original_name') or f"File #{file_id}"
+        shared_by_name = shared_by_user.get('name', 'A colleague')
+        for recipient in notify_targets:
+            send_file_share_email(recipient.get('email'), recipient.get('name'), file_name, permission, shared_by_name)
         
         return jsonify({'success': True, 'message': 'File shared successfully'})
     except Exception as e:
@@ -2346,6 +2722,15 @@ def debug_file_workspaces(file_id):
 def get_file_workspaces(file_id):
     """Get all workspaces where a file exists"""
     try:
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'error': 'File not found'}), 404
+        permission = get_user_file_permission(file_record, request_user)
+        if permission not in ('owner', 'editor', 'admin'):
+            return jsonify({'error': 'Access denied'}), 403
         workspaces = DMSDatabase.get_file_workspaces(file_id)
         return jsonify(workspaces)
     except Exception as e:
@@ -2418,8 +2803,19 @@ def update_category(category_id):
 
 @app.route('/api/workspaces', methods=['GET'])
 def get_workspaces():
-    workspaces = DMSDatabase.get_all_workspaces()
-    return jsonify(workspaces or [])
+    request_user = get_request_user()
+    if not request_user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    workspaces = DMSDatabase.get_all_workspaces() or []
+    if request_user['role'] == 'system_admin':
+        return jsonify(workspaces)
+    
+    visible = []
+    for workspace in workspaces:
+        members = workspace.get('members') or []
+        if workspace.get('user_id') == request_user['user_id'] or request_user['user_id'] in members:
+            visible.append(workspace)
+    return jsonify(visible)
 
 @app.route('/api/workspaces', methods=['POST'])
 def create_workspace():
@@ -2482,17 +2878,25 @@ def create_reset_code():
 def get_user(user_id):
     user = DMSDatabase.get_user_by_id(user_id)
     if user:
-        return jsonify(user)
+        return jsonify(serialize_user_record(user))
     return jsonify({'error': 'User not found'}), 404
 
 @app.route('/api/workspaces/<int:workspace_id>', methods=['GET'])
 def get_workspace(workspace_id):
+    request_user = get_request_user()
+    if not request_user:
+        return jsonify({'error': 'Unauthorized'}), 401
     workspaces = DMSDatabase.get_all_workspaces()
     workspace = next((w for w in workspaces if w['workspace_id'] == workspace_id), None)
-    if workspace:
-        workspace['members'] = DMSDatabase.get_workspace_members(workspace_id)
-        return jsonify(workspace)
-    return jsonify({'error': 'Workspace not found'}), 404
+    if not workspace:
+        return jsonify({'error': 'Workspace not found'}), 404
+    
+    members = workspace.get('members') or []
+    if request_user['role'] != 'system_admin' and request_user['user_id'] not in members and workspace.get('user_id') != request_user['user_id']:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    workspace['members'] = DMSDatabase.get_workspace_members(workspace_id)
+    return jsonify(workspace)
 
 @app.route('/api/workspaces/<int:workspace_id>', methods=['PUT'])
 def update_workspace(workspace_id):
@@ -2547,6 +2951,19 @@ def add_file_to_workspace_api(file_id):
 def get_workspace_files_api(workspace_id):
     """Get all files in a workspace using the new many-to-many relationship"""
     try:
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        workspaces = DMSDatabase.get_all_workspaces() or []
+        workspace = next((w for w in workspaces if w['workspace_id'] == workspace_id), None)
+        if not workspace:
+            return jsonify({'error': 'Workspace not found'}), 404
+        
+        members = workspace.get('members') or []
+        if request_user['role'] != 'system_admin' and request_user['user_id'] not in members and workspace.get('user_id') != request_user['user_id']:
+            return jsonify({'error': 'Access denied'}), 403
+        
         print(f"🚀 DEBUG: API - Getting files for workspace {workspace_id}")
         files = DMSDatabase.get_files_by_workspace(workspace_id)
         return jsonify(files)
@@ -2590,23 +3007,23 @@ def get_file_content(file_id):
         if not file_record:
             return jsonify({'error': 'File not found'}), 404
         
-        file_path = file_record.get('file_path')
-        if not file_path or not os.path.exists(file_path):
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        permission = get_user_file_permission(file_record, request_user)
+        if not permission:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        actual_path = resolve_file_path(file_record)
+        if not actual_path or not os.path.exists(actual_path):
             return jsonify({'error': 'File not found on server'}), 404
         
-        # Read file content as text
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            content = extract_text_for_editing(file_record, actual_path)
             return jsonify({'success': True, 'content': content})
-        except UnicodeDecodeError:
-            # Try with different encoding
-            try:
-                with open(file_path, 'r', encoding='latin-1') as f:
-                    content = f.read()
-                return jsonify({'success': True, 'content': content})
-            except:
-                return jsonify({'error': 'File is not a text file and cannot be edited directly'}), 400
+        except ValueError as ve:
+            return jsonify({'error': str(ve)}), 400
         except Exception as e:
             return jsonify({'error': f'Failed to read file: {str(e)}'}), 500
             
@@ -2627,19 +3044,24 @@ def save_file_edit(file_id):
         if not file_record:
             return jsonify({'error': 'File not found'}), 404
         
-        file_path = file_record.get('file_path')
-        if not file_path or not os.path.exists(file_path):
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        permission = get_user_file_permission(file_record, request_user)
+        if permission not in ('owner', 'editor', 'admin'):
+            return jsonify({'error': 'You do not have permission to edit this file.'}), 403
+        
+        actual_path = resolve_file_path(file_record)
+        if not actual_path or not os.path.exists(actual_path):
             return jsonify({'error': 'File not found on server'}), 404
         
-        # Save edited content
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            
-            # Update file metadata
-            DMSDatabase.update_file(file_id, None, None, None, None, None, None)
-            
+            save_text_back_to_file(file_record, actual_path, content)
+            DMSDatabase.update_file(file_id, {'updated_at': datetime.now()})
             return jsonify({'success': True, 'message': 'File saved successfully'})
+        except ValueError as ve:
+            return jsonify({'error': str(ve)}), 400
         except Exception as e:
             return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
             
@@ -2652,3 +3074,4 @@ def health_check():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+

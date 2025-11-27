@@ -47,16 +47,27 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def save_uploaded_file(file, user_id):
+def save_uploaded_file(file, user_id, custom_filename=None, allow_overwrite=False):
     try:
         if not file or file.filename == '':
-            return None, None, "No file selected"
+            return None, None, None, "No file selected"
             
         if not allowed_file(file.filename):
-            return None, None, "File type not allowed"
+            return None, None, None, "File type not allowed"
         
         # Keep original filename but make it safe
         original_filename = secure_filename(file.filename)
+        
+        # Use custom filename if provided, otherwise use original
+        if custom_filename:
+            # Ensure custom filename has extension
+            if '.' not in custom_filename:
+                extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
+                if extension:
+                    custom_filename = f"{custom_filename}.{extension}"
+            target_filename = secure_filename(custom_filename)
+        else:
+            target_filename = original_filename
         
         # Create organized folder structure to avoid conflicts
         today = datetime.now()
@@ -69,37 +80,62 @@ def save_uploaded_file(file, user_id):
         os.makedirs(folder_path, exist_ok=True)
         
         # Get only ACTIVE files from database to check for name conflicts
-        query = "SELECT name FROM files WHERE user_id = %s AND status = 'active' AND name LIKE %s"
+        query = "SELECT name, file_id FROM files WHERE user_id = %s AND status = 'active' AND name = %s"
         connection = DatabaseConfig.get_connection()
         cursor = connection.cursor(dictionary=True)
-        
-        base_name = original_filename.rsplit('.', 1)[0]
-        extension = original_filename.rsplit('.', 1)[1].lower()
-        
-        # Check if file with same name exists in user's ACTIVE files
-        like_pattern = f"{base_name}%.{extension}"
-        cursor.execute(query, (user_id, like_pattern))
-        existing_files = cursor.fetchall()
+        cursor.execute(query, (user_id, target_filename))
+        existing_file = cursor.fetchone()
         cursor.close()
         connection.close()
         
-        final_filename = original_filename
-        counter = 1
-        
-        # If file exists in active files, add (1), (2), etc.
-        existing_names = [f['name'] for f in existing_files]
-        while final_filename in existing_names:
-            final_filename = f"{base_name} ({counter}).{extension}"
-            counter += 1
-        
+        final_filename = target_filename
         file_path = os.path.join(folder_path, final_filename)
+        
+        # If file exists and overwrite is allowed, delete the existing file
+        if existing_file and allow_overwrite:
+            # Delete existing file record and physical file
+            existing_file_id = existing_file['file_id']
+            existing_file_record = DMSDatabase.get_file_by_id(existing_file_id)
+            if existing_file_record:
+                old_file_path = existing_file_record.get('file_path')
+                if old_file_path and os.path.exists(old_file_path):
+                    try:
+                        os.remove(old_file_path)
+                    except Exception as e:
+                        print(f"Warning: Could not delete old file: {e}")
+                # Delete the old file record
+                DMSDatabase.delete_file(existing_file_id)
+        elif existing_file and not allow_overwrite:
+            # Auto-number if file exists and overwrite not allowed
+            base_name = target_filename.rsplit('.', 1)[0] if '.' in target_filename else target_filename
+            extension = target_filename.rsplit('.', 1)[1].lower() if '.' in target_filename else ''
+            
+            query = "SELECT name FROM files WHERE user_id = %s AND status = 'active' AND name LIKE %s"
+            connection = DatabaseConfig.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            like_pattern = f"{base_name}%.{extension}" if extension else f"{base_name}%"
+            cursor.execute(query, (user_id, like_pattern))
+            existing_files = cursor.fetchall()
+            cursor.close()
+            connection.close()
+            
+            counter = 1
+            existing_names = [f['name'] for f in existing_files]
+            while final_filename in existing_names:
+                if extension:
+                    final_filename = f"{base_name} ({counter}).{extension}"
+                else:
+                    final_filename = f"{base_name} ({counter})"
+                counter += 1
+            
+            file_path = os.path.join(folder_path, final_filename)
         
         # Actually save the file
         file.save(file_path)
         
         # Verify file was saved
         if not os.path.exists(file_path):
-            return None, None, "Failed to save file to server"
+            return None, None, None, "Failed to save file to server"
             
         print(f"DEBUG: File successfully saved at: {file_path}")
         file_path_hash = hash_file_path(file_path)
@@ -107,7 +143,7 @@ def save_uploaded_file(file, user_id):
         
     except Exception as e:
         print(f"Error saving file: {e}")
-        return None, None, f"File save error: {str(e)}"
+        return None, None, None, f"File save error: {str(e)}"
 
 # Update the upload-file route
 @app.route('/api/upload-file', methods=['POST'])
@@ -128,8 +164,10 @@ def upload_file():
         user_id = request.form.get('user_id')
         workspace_ids = request.form.getlist('workspace_ids')  # Get multiple workspace IDs
         category_id = request.form.get('category_id')
+        department_id = request.form.get('department_id')
+        send_email = request.form.get('send_email', 'false').lower() == 'true'
         
-        print(f"DEBUG: User ID: {user_id}, Workspace IDs: {workspace_ids}, Category ID: {category_id}")
+        print(f"DEBUG: User ID: {user_id}, Workspace IDs: {workspace_ids}, Category ID: {category_id}, Department ID: {department_id}, Send Email: {send_email}")
         
         if not user_id:
             return jsonify({'error': 'User ID is required'}), 400
@@ -151,9 +189,12 @@ def upload_file():
             allowed_types = settings.get('allowed_types', 'pdf,doc,docx,jpg,jpeg,png,txt')
             return jsonify({'error': f'File type not allowed. Allowed types: {allowed_types}'}), 400
         
+        # Get custom filename and overwrite flag if provided
+        custom_filename = request.form.get('custom_filename')
+        allow_overwrite = request.form.get('allow_overwrite', 'false').lower() == 'true'
+        
         # Save the file
-
-        final_filename, file_path, file_path_hash, error_msg = save_uploaded_file(file, user_id)
+        final_filename, file_path, file_path_hash, error_msg = save_uploaded_file(file, user_id, custom_filename, allow_overwrite)
         if not file_path:
             return jsonify({'error': error_msg or 'Failed to save file'}), 400
 
@@ -212,6 +253,91 @@ def upload_file():
         print(f"DEBUG: Real file path: {file_path} | Hash stored: {file_path_hash}")
 
         file_id = DMSDatabase.create_file(file_data)
+        
+        # Send email notification if requested
+        if send_email and department_id:
+            try:
+                # Get department users
+                users = DMSDatabase.get_all_users()
+                department_users = [u for u in users if u.get('department_id') == int(department_id) and u.get('status') == 'active']
+                
+                if department_users:
+                    # Send email notification
+                    current_user = DMSDatabase.get_user_by_id(user_id)
+                    uploader_name = current_user.get('name', 'Unknown') if current_user else 'Unknown'
+                    
+                    # Use existing email sending logic
+                    smtp_server = "smtp.gmail.com"
+                    smtp_port = 587
+                    sender_email = "plp.dmshr@gmail.com"
+                    sender_password = "thpn ttsr pxcw zchi"
+                    
+                    from email.mime.text import MIMEText
+                    from email.mime.multipart import MIMEMultipart
+                    import smtplib
+                    
+                    for dept_user in department_users:
+                        try:
+                            recipient_email = dept_user.get('email')
+                            if not recipient_email:
+                                continue
+                            
+                            subject = f"New File Uploaded: {final_filename}"
+                            html_content = f"""
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <style>
+                                    body {{ font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }}
+                                    .container {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                                    .header {{ text-align: center; margin-bottom: 30px; color: #3b82f6; }}
+                                    .content {{ margin: 20px 0; }}
+                                    .info-box {{ background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; }}
+                                    .footer {{ margin-top: 30px; text-align: center; color: #64748b; font-size: 14px; }}
+                                </style>
+                            </head>
+                            <body>
+                                <div class='container'>
+                                    <div class='header'>
+                                        <h2>New File Uploaded</h2>
+                                    </div>
+                                    <div class='content'>
+                                        <p>Hello {dept_user.get('name', 'User')},</p>
+                                        <p>A new file has been uploaded to your department:</p>
+                                        <div class='info-box'>
+                                            <p><strong>File Name:</strong> {final_filename}</p>
+                                            <p><strong>Uploaded By:</strong> {uploader_name}</p>
+                                        </div>
+                                        <p>You can access this file in the Document Management System.</p>
+                                    </div>
+                                    <div class='footer'>
+                                        <p>&copy; 2025 DMS Portal. All rights reserved.</p>
+                                    </div>
+                                </div>
+                            </body>
+                            </html>
+                            """
+                            
+                            message = MIMEMultipart("alternative")
+                            message["Subject"] = subject
+                            message["From"] = f"DOCUMENT MANAGEMENT SYSTEM <{sender_email}>"
+                            message["To"] = recipient_email
+                            
+                            part = MIMEText(html_content, "html")
+                            message.attach(part)
+                            
+                            server = smtplib.SMTP(smtp_server, smtp_port)
+                            server.starttls()
+                            server.login(sender_email, sender_password)
+                            server.sendmail(sender_email, recipient_email, message.as_string())
+                            server.quit()
+                            
+                            print(f"Email sent successfully to {recipient_email}")
+                        except Exception as email_error:
+                            print(f"Error sending email to {dept_user.get('email')}: {str(email_error)}")
+            except Exception as e:
+                print(f"Error in email notification: {str(e)}")
+                # Don't fail the upload if email fails
 
         if file_id:
             print(f"DEBUG: File created successfully with ID: {file_id}")
@@ -834,24 +960,47 @@ class DMSDatabase:
         return DatabaseConfig.execute_query(query, (next_id, name, email, password, role, department_id), lastrowid=True)
 
     @staticmethod
-    def update_user(user_id, name, email, role, department_id, status, profile_image=None, password=None):
-        """Update user information - including password if provided"""
+    def update_user(user_id, name=None, email=None, role=None, department_id=None, status=None, profile_image=None, password=None):
+        """Update user information - supports partial updates"""
         try:
             connection = DatabaseConfig.get_connection()
             cursor = connection.cursor()
             
-            if password:
-                # Update including password
-                query = """UPDATE users SET name=%s, email=%s, role=%s, department_id=%s, 
-                        status=%s, profile_image=%s, password=%s, updated_at=NOW() 
-                        WHERE user_id=%s"""
-                params = (name, email, role, department_id, status, profile_image, password, user_id)
-            else:
-                # Update without password
-                query = """UPDATE users SET name=%s, email=%s, role=%s, department_id=%s, 
-                        status=%s, profile_image=%s, updated_at=NOW() 
-                        WHERE user_id=%s"""
-                params = (name, email, role, department_id, status, profile_image, user_id)
+            # Build update query dynamically based on what's provided
+            updates = []
+            params = []
+            
+            if name is not None:
+                updates.append("name=%s")
+                params.append(name)
+            if email is not None:
+                updates.append("email=%s")
+                params.append(email)
+            if role is not None:
+                updates.append("role=%s")
+                params.append(role)
+            if department_id is not None:
+                updates.append("department_id=%s")
+                params.append(department_id)
+            if status is not None:
+                updates.append("status=%s")
+                params.append(status)
+            if profile_image is not None:
+                updates.append("profile_image=%s")
+                params.append(profile_image)
+            if password is not None:
+                updates.append("password=%s")
+                params.append(password)
+            
+            if not updates:
+                cursor.close()
+                connection.close()
+                return False
+            
+            updates.append("updated_at=NOW()")
+            params.append(user_id)
+            
+            query = f"UPDATE users SET {', '.join(updates)} WHERE user_id=%s"
             
             cursor.execute(query, params)
             connection.commit()
@@ -869,10 +1018,16 @@ class DMSDatabase:
             return False
         
     @staticmethod
-    def archive_user(user_id, reason, notes=None):
-        query = """UPDATE users SET status='archived', archive_reason=%s, archive_notes=%s, archived_at=NOW() 
-                   WHERE user_id=%s"""
-        return DatabaseConfig.execute_query(query, (reason, notes, user_id))
+    def archive_user(user_id, reason=None, notes=None):
+        # Update status to archived (reason and notes are optional for backward compatibility)
+        if reason or notes:
+            query = """UPDATE users SET status='archived', archive_reason=%s, archive_notes=%s, archived_at=NOW() 
+                       WHERE user_id=%s"""
+            return DatabaseConfig.execute_query(query, (reason, notes, user_id))
+        else:
+            query = """UPDATE users SET status='archived', archived_at=NOW() 
+                       WHERE user_id=%s"""
+            return DatabaseConfig.execute_query(query, (user_id,))
     
     @staticmethod
     def delete_user(user_id):
@@ -1634,11 +1789,11 @@ def update_user(user_id):
         
         result = DMSDatabase.update_user(
             user_id, 
-            data['name'], 
-            data['email'], 
-            data['role'],
-            data['department_id'], 
-            data['status'], 
+            data.get('name'), 
+            data.get('email'), 
+            data.get('role'),
+            data.get('department_id'), 
+            data.get('status'), 
             data.get('profile_image'),
             password  # Pass password if provided
         )
@@ -1650,14 +1805,105 @@ def update_user(user_id):
             
     except Exception as e:
         print(f"Error in update_user API: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to update user: {str(e)}'}), 500
     
 
 @app.route('/api/users/<int:user_id>/archive', methods=['POST'])
 def archive_user(user_id):
-    data = request.json
-    DMSDatabase.archive_user(user_id, data['reason'], data.get('notes'))
-    return jsonify({'success': True})
+    try:
+        data = request.json or {}
+        status = data.get('status', 'archived')
+        
+        # Update user status to archived using update_user with only status parameter
+        result = DMSDatabase.update_user(user_id, None, None, None, None, status, None, None)
+        if result:
+            return jsonify({'success': True, 'message': 'User archived successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to archive user'}), 500
+    except Exception as e:
+        print(f"Error archiving user {user_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to archive user: {str(e)}'}), 500
+
+@app.route('/api/upload-profile-image', methods=['POST'])
+def upload_profile_image():
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        file = request.files['image']
+        user_id = request.form.get('user_id')
+        
+        if not user_id:
+            return jsonify({'error': 'User ID is required'}), 400
+        
+        if file.filename == '':
+            return jsonify({'error': 'Please select an image file'}), 400
+        
+        # Validate image type
+        if not file.content_type.startswith('image/'):
+            return jsonify({'error': 'File must be an image'}), 400
+        
+        # Check file size (max 5MB)
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 5 * 1024 * 1024:
+            return jsonify({'error': 'Image size must be less than 5MB'}), 400
+        
+        # Save image to uploads/profile_images directory
+        upload_folder = os.path.join(os.path.dirname(__file__), 'uploads', 'profile_images')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # Generate unique filename
+        import time
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        filename = f"profile_{user_id}_{int(time.time())}.{file_ext}"
+        file_path = os.path.join(upload_folder, filename)
+        
+        file.save(file_path)
+        
+        # Return relative URL
+        image_url = f"/api/uploads/profile_images/{filename}"
+        
+        # Update user profile_image in database
+        DMSDatabase.update_user(user_id, None, None, None, None, None, image_url, None)
+        
+        return jsonify({'success': True, 'image_url': image_url})
+        
+    except Exception as e:
+        print(f"Error uploading profile image: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to upload profile image: {str(e)}'}), 500
+
+@app.route('/api/uploads/profile_images/<filename>')
+def serve_profile_image(filename):
+    """Serve profile images"""
+    try:
+        image_path = os.path.join(os.path.dirname(__file__), 'uploads', 'profile_images', filename)
+        if os.path.exists(image_path):
+            return send_file(image_path)
+        else:
+            return jsonify({'error': 'Image not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>/restore', methods=['POST'])
+def restore_user(user_id):
+    try:
+        # Update user status to active
+        result = DMSDatabase.update_user(user_id, None, None, None, None, 'active', None, None)
+        if result:
+            return jsonify({'success': True, 'message': 'User restored successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to restore user'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to restore user: {str(e)}'}), 500
 
 @app.route('/api/files', methods=['GET'])
 def get_files():
@@ -1684,6 +1930,111 @@ def create_file():
     file_id = DMSDatabase.create_file(data)
     return jsonify({'file_id': file_id})
 
+@app.route('/api/files/<int:file_id>/shares', methods=['GET'])
+def get_file_shares(file_id):
+    try:
+        query = """SELECT fs.*, 
+                   u.name as shared_with_user_name, 
+                   d.name as shared_with_department_name
+                   FROM file_shares fs
+                   LEFT JOIN users u ON fs.shared_with_user_id = u.user_id
+                   LEFT JOIN departments d ON fs.shared_with_department_id = d.department_id
+                   WHERE fs.file_id = %s"""
+        shares = DatabaseConfig.execute_query(query, (file_id,), fetch=True)
+        return jsonify(shares or [])
+    except Exception as e:
+        print(f"Error getting file shares: {str(e)}")
+        return jsonify({'error': f'Failed to get file shares: {str(e)}'}), 500
+
+@app.route('/api/files/<int:file_id>/share', methods=['POST'])
+def share_file(file_id):
+    try:
+        data = request.json
+        shared_with_user_id = data.get('shared_with_user_id')
+        shared_with_department_id = data.get('shared_with_department_id')
+        permission = data.get('permission', 'viewer')
+        
+        # Get current user from session or request
+        # For now, we'll use a default or get from request
+        shared_by = data.get('shared_by') or 1  # TODO: Get from session
+        
+        if not shared_with_user_id and not shared_with_department_id:
+            return jsonify({'success': False, 'error': 'Must specify user or department'}), 400
+        
+        # Check if share already exists
+        check_query = """SELECT share_id FROM file_shares 
+                        WHERE file_id = %s 
+                        AND (shared_with_user_id = %s OR shared_with_department_id = %s)"""
+        existing = DatabaseConfig.execute_query(
+            check_query, 
+            (file_id, shared_with_user_id or 0, shared_with_department_id or 0), 
+            fetch=True
+        )
+        
+        if existing:
+            return jsonify({'success': False, 'error': 'Already shared with this user/department'}), 400
+        
+        # Create share
+        insert_query = """INSERT INTO file_shares 
+                         (file_id, shared_with_user_id, shared_with_department_id, permission, shared_by)
+                         VALUES (%s, %s, %s, %s, %s)"""
+        DatabaseConfig.execute_query(
+            insert_query,
+            (file_id, shared_with_user_id, shared_with_department_id, permission, shared_by)
+        )
+        
+        # Update file shared flag
+        DMSDatabase.update_file(file_id, {'shared': True})
+        
+        return jsonify({'success': True, 'message': 'File shared successfully'})
+    except Exception as e:
+        print(f"Error sharing file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to share file: {str(e)}'}), 500
+
+@app.route('/api/file-shares/<int:share_id>', methods=['PUT'])
+def update_file_share(share_id):
+    try:
+        data = request.json
+        permission = data.get('permission')
+        
+        if permission not in ['viewer', 'editor']:
+            return jsonify({'success': False, 'error': 'Invalid permission'}), 400
+        
+        query = "UPDATE file_shares SET permission = %s WHERE share_id = %s"
+        DatabaseConfig.execute_query(query, (permission, share_id))
+        
+        return jsonify({'success': True, 'message': 'Share updated successfully'})
+    except Exception as e:
+        print(f"Error updating file share: {str(e)}")
+        return jsonify({'success': False, 'error': f'Failed to update share: {str(e)}'}), 500
+
+@app.route('/api/file-shares/<int:share_id>', methods=['DELETE'])
+def delete_file_share(share_id):
+    try:
+        # Get file_id before deleting
+        file_id_query = "SELECT file_id FROM file_shares WHERE share_id = %s"
+        file_result = DatabaseConfig.execute_query(file_id_query, (share_id,), fetch=True)
+        
+        query = "DELETE FROM file_shares WHERE share_id = %s"
+        DatabaseConfig.execute_query(query, (share_id,))
+        
+        # Check if file still has shares
+        if file_result:
+            file_id = file_result[0]['file_id']
+            check_query = "SELECT COUNT(*) as count FROM file_shares WHERE file_id = %s"
+            result = DatabaseConfig.execute_query(check_query, (file_id,), fetch=True)
+            
+            if result and result[0]['count'] == 0:
+                # No more shares, set file to not shared
+                DMSDatabase.update_file(file_id, {'shared': False})
+        
+        return jsonify({'success': True, 'message': 'Share removed successfully'})
+    except Exception as e:
+        print(f"Error deleting file share: {str(e)}")
+        return jsonify({'success': False, 'error': f'Failed to remove share: {str(e)}'}), 500
+
 @app.route('/api/files/<int:file_id>', methods=['PUT'])
 def update_file(file_id):
     try:
@@ -1692,6 +2043,103 @@ def update_file(file_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': f'Failed to update file: {str(e)}'}), 500
+
+@app.route('/api/files/<int:file_id>/rename', methods=['POST'])
+def rename_file(file_id):
+    try:
+        data = request.json
+        new_name = data.get('new_name')
+        
+        if not new_name:
+            return jsonify({'success': False, 'error': 'New name is required'}), 400
+        
+        # Get current file record
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        user_id = file_record['user_id']
+        original_name = file_record['name']
+        
+        # Check if new name already exists for this user (excluding current file)
+        query = "SELECT file_id FROM files WHERE user_id = %s AND status = 'active' AND name = %s AND file_id != %s"
+        connection = DatabaseConfig.get_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(query, (user_id, new_name, file_id))
+        existing_file = cursor.fetchone()
+        cursor.close()
+        connection.close()
+        
+        if existing_file:
+            # File exists - we need to overwrite it
+            # Delete the existing file first
+            existing_file_record = DMSDatabase.get_file_by_id(existing_file['file_id'])
+            if existing_file_record:
+                # Find and delete the old file's physical file
+                old_file_path_hash = existing_file_record.get('file_path')
+                old_file_path = None
+                
+                # Try to find the actual file path
+                upload_folder = app.config['UPLOAD_FOLDER']
+                for root, dirs, files in os.walk(upload_folder):
+                    for file in files:
+                        if file == existing_file_record['name'] or file == existing_file_record.get('original_name'):
+                            old_file_path = os.path.join(root, file)
+                            break
+                    if old_file_path:
+                        break
+                
+                if old_file_path and os.path.exists(old_file_path):
+                    try:
+                        os.remove(old_file_path)
+                    except Exception as e:
+                        print(f"Warning: Could not delete old file: {e}")
+                
+                # Delete the old file record
+                DMSDatabase.delete_file(existing_file['file_id'])
+        
+        # Find the actual file path for the current file
+        file_path_hash = file_record.get('file_path')
+        actual_file_path = None
+        
+        # Try to find the actual file path
+        upload_folder = app.config['UPLOAD_FOLDER']
+        for root, dirs, files in os.walk(upload_folder):
+            for file in files:
+                if file == original_name or file == file_record.get('original_name'):
+                    actual_file_path = os.path.join(root, file)
+                    break
+            if actual_file_path:
+                break
+        
+        # If we found the file, rename it physically
+        if actual_file_path and os.path.exists(actual_file_path):
+            try:
+                # Get the directory and new file path
+                file_dir = os.path.dirname(actual_file_path)
+                new_file_path = os.path.join(file_dir, secure_filename(new_name))
+                
+                # Rename the physical file
+                os.rename(actual_file_path, new_file_path)
+                
+                # Update the file_path hash in database
+                new_file_path_hash = hash_file_path(new_file_path)
+                DMSDatabase.update_file(file_id, {'name': new_name, 'file_path': new_file_path_hash})
+            except Exception as e:
+                print(f"Warning: Could not rename physical file: {e}")
+                # Still update the name in database even if physical rename fails
+                DMSDatabase.update_file(file_id, {'name': new_name})
+        else:
+            # File not found physically, just update the name in database
+            result = DMSDatabase.update_file(file_id, {'name': new_name})
+            if not result:
+                return jsonify({'success': False, 'error': 'Failed to rename file'}), 500
+        
+        return jsonify({'success': True, 'message': 'File renamed successfully'})
+            
+    except Exception as e:
+        print(f"Error renaming file: {e}")
+        return jsonify({'success': False, 'error': f'Failed to rename file: {str(e)}'}), 500
 
 @app.route('/api/files/<int:file_id>/archive', methods=['POST'])
 def archive_file_api(file_id):
@@ -2133,6 +2581,70 @@ def delete_user(user_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': f'Failed to delete user: {str(e)}'}), 500
+
+@app.route('/api/files/<int:file_id>/content', methods=['GET'])
+def get_file_content(file_id):
+    """Get file content as text for editing"""
+    try:
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'error': 'File not found'}), 404
+        
+        file_path = file_record.get('file_path')
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'error': 'File not found on server'}), 404
+        
+        # Read file content as text
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return jsonify({'success': True, 'content': content})
+        except UnicodeDecodeError:
+            # Try with different encoding
+            try:
+                with open(file_path, 'r', encoding='latin-1') as f:
+                    content = f.read()
+                return jsonify({'success': True, 'content': content})
+            except:
+                return jsonify({'error': 'File is not a text file and cannot be edited directly'}), 400
+        except Exception as e:
+            return jsonify({'error': f'Failed to read file: {str(e)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'Failed to get file content: {str(e)}'}), 500
+
+@app.route('/api/files/<int:file_id>/edit', methods=['POST'])
+def save_file_edit(file_id):
+    """Save edited file content"""
+    try:
+        data = request.json
+        content = data.get('content')
+        
+        if content is None:
+            return jsonify({'error': 'Content is required'}), 400
+        
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'error': 'File not found'}), 404
+        
+        file_path = file_record.get('file_path')
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({'error': 'File not found on server'}), 404
+        
+        # Save edited content
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            # Update file metadata
+            DMSDatabase.update_file(file_id, None, None, None, None, None, None)
+            
+            return jsonify({'success': True, 'message': 'File saved successfully'})
+        except Exception as e:
+            return jsonify({'error': f'Failed to save file: {str(e)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'Failed to save file edit: {str(e)}'}), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

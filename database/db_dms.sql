@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 21, 2025 at 11:05 PM
+-- Generation Time: Nov 27, 2025 at 07:14 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -177,7 +177,172 @@ INSERT INTO `activity_log` (`activity_log_id`, `user_id`, `activity`, `timestamp
 (8214, 1, 'User logged in', '2025-11-21 22:01:03'),
 (8215, 1, 'Uploaded 1 files', '2025-11-21 22:01:53'),
 (8216, 1, 'Uploaded 1 files', '2025-11-21 22:03:44'),
-(8217, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-21 22:04:06');
+(8217, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-21 22:04:06'),
+(8218, 3, 'User logged in', '2025-11-21 23:06:32'),
+(8219, 3, 'Updated user: System Admin', '2025-11-21 23:13:52'),
+(8220, 1, 'User logged in', '2025-11-22 03:15:19'),
+(8221, 1, 'Downloaded invoice-sample.pdf', '2025-11-22 03:34:02'),
+(8222, 1, 'Updated workspaces for \"invoice-sample.pdf\"', '2025-11-22 03:35:09'),
+(8223, 1, 'Updated workspaces for \"invoice-sample.pdf\"', '2025-11-22 03:35:53'),
+(8224, 1, 'Uploaded 1 files', '2025-11-22 03:36:16'),
+(8225, 1, 'Restored file ID: 1061', '2025-11-22 03:37:07'),
+(8226, 1, 'Added user: glaiiiaa', '2025-11-22 03:40:53'),
+(8227, 1, 'Added user: Lyrika', '2025-11-22 03:42:50'),
+(8228, 1, 'Unshared leave.txt', '2025-11-22 03:46:03'),
+(8229, 1, 'Shared leave.txt', '2025-11-22 03:46:12'),
+(8230, 1, 'Unshared leave.txt', '2025-11-22 03:46:19'),
+(8231, 1, 'Restored file ID: 1064', '2025-11-22 03:47:34'),
+(8232, 1, 'Permanently deleted leave.txt', '2025-11-22 03:50:51'),
+(8233, 3, 'User logged in', '2025-11-22 03:56:53'),
+(8234, 1, 'User logged in', '2025-11-22 04:08:55'),
+(8235, 1, 'User logged in', '2025-11-22 04:08:56'),
+(8236, 1, 'Updated workspaces for \"leave.pdf\"', '2025-11-22 04:09:47'),
+(8237, 1, 'Restored file ID: 1065', '2025-11-22 04:11:19'),
+(8238, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-22 04:12:20'),
+(8239, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-22 04:12:22'),
+(8240, 1, 'Permanently deleted leave.pdf', '2025-11-22 04:13:26'),
+(8241, 1, 'User logged in', '2025-11-22 05:04:47'),
+(8242, 1, 'Updated workspaces for \"invoice-sample.pdf\"', '2025-11-22 05:05:41'),
+(8243, 1, 'User logged in', '2025-11-22 05:14:54'),
+(8244, 1, 'Unshared invoice-sample.pdf', '2025-11-22 05:21:25'),
+(8245, 1, 'Downloaded invoice-sample.pdf', '2025-11-22 05:21:28'),
+(8246, 1, 'Shared invoice-sample.pdf', '2025-11-22 05:21:34'),
+(8247, 1, 'User logged in', '2025-11-22 13:20:12'),
+(8248, 1, 'User logged in', '2025-11-23 11:16:46'),
+(8249, 1, 'Restored file ID: 1066', '2025-11-23 11:17:42'),
+(8250, 1, 'Unshared leave (1).pdf', '2025-11-23 11:40:00'),
+(8251, 1, 'Restored file ID: 1065', '2025-11-23 11:42:09'),
+(8252, 1, 'Renamed file to: liv.pdf', '2025-11-23 11:53:41'),
+(8253, 1, 'Uploaded 1 files', '2025-11-23 11:58:52'),
+(8254, 1, 'Updated workspaces for \"leave.pdf\"', '2025-11-23 12:13:10'),
+(8255, 1, 'User logged in', '2025-11-23 13:30:59'),
+(8256, 1, 'Uploaded 1 files', '2025-11-23 13:31:12'),
+(8257, 1, 'Uploaded 1 files', '2025-11-23 13:32:02'),
+(8258, 1, 'Uploaded 1 files', '2025-11-23 13:32:04'),
+(8259, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-23 13:33:17'),
+(8260, 1, 'Downloaded leave.pdf', '2025-11-23 13:33:36'),
+(8261, 1, 'Downloaded leave.pdf', '2025-11-23 13:35:39'),
+(8262, 1, 'Downloaded leave.pdf', '2025-11-23 13:35:51'),
+(8263, 1, 'User logged in', '2025-11-23 13:47:11'),
+(8264, 1, 'Downloaded leave.pdf', '2025-11-23 13:49:43'),
+(8265, 1, 'Downloaded leave.pdf', '2025-11-23 13:50:14'),
+(8266, 1, 'Downloaded leave.pdf', '2025-11-23 13:51:25'),
+(8267, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-23 13:51:38'),
+(8268, 1, 'Downloaded leave.pdf', '2025-11-23 13:51:51'),
+(8269, 1, 'Downloaded leave.pdf', '2025-11-23 13:55:23'),
+(8270, 1, 'Downloaded leave.pdf', '2025-11-23 13:56:02'),
+(8271, 1, 'Downloaded leave.pdf', '2025-11-23 14:01:08'),
+(8272, 1, 'Uploaded 1 files', '2025-11-23 14:12:37'),
+(8273, 1, 'Downloaded resignation.pdf', '2025-11-23 14:12:42'),
+(8274, 1, 'Downloaded resignation.pdf', '2025-11-23 14:16:03'),
+(8275, 1, 'Downloaded resignation.pdf', '2025-11-23 14:16:25'),
+(8276, 1, 'Downloaded resignation.pdf', '2025-11-23 14:17:09'),
+(8277, 1, 'User logged in', '2025-11-24 02:09:30'),
+(8278, 1, 'Uploaded 1 files', '2025-11-24 02:10:01'),
+(8279, 1, 'Uploaded 1 files', '2025-11-24 02:12:43'),
+(8280, 1, 'Uploaded 1 files', '2025-11-24 02:13:21'),
+(8281, 1, 'Uploaded 1 files', '2025-11-24 02:15:32'),
+(8282, 1, 'Uploaded 1 files', '2025-11-24 02:16:07'),
+(8283, 1, 'Uploaded 1 files', '2025-11-24 02:17:25'),
+(8284, 1, 'User logged in', '2025-11-24 02:24:26'),
+(8285, 1, 'User logged in', '2025-11-24 02:26:08'),
+(8286, 1, 'Uploaded 1 files', '2025-11-24 02:26:40'),
+(8287, 1, 'User logged in', '2025-11-24 02:30:32'),
+(8288, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-24 02:30:46'),
+(8289, 1, 'User logged in', '2025-11-24 02:46:18'),
+(8290, 1, 'Uploaded 1 files', '2025-11-24 02:47:03'),
+(8291, 1, 'Uploaded 1 files', '2025-11-24 02:56:38'),
+(8292, 1, 'Updated workspaces for \"leave.pdf\"', '2025-11-24 02:57:01'),
+(8293, 1, 'User logged in', '2025-11-24 03:02:04'),
+(8294, 1, 'Uploaded 1 files', '2025-11-24 03:04:02'),
+(8295, 1, 'Uploaded 1 files', '2025-11-24 03:05:08'),
+(8296, 1, 'Uploaded 1 files', '2025-11-24 03:06:12'),
+(8297, 1, 'Uploaded 1 files', '2025-11-24 03:07:22'),
+(8298, 1, 'Uploaded 1 files', '2025-11-24 03:08:57'),
+(8299, 1, 'User logged in', '2025-11-24 03:13:56'),
+(8300, 1, 'Uploaded 1 files', '2025-11-24 03:14:17'),
+(8301, 1, 'User logged in', '2025-11-24 03:17:55'),
+(8302, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-24 03:19:12'),
+(8303, 1, 'User logged in', '2025-11-24 03:37:49'),
+(8304, 1, 'Uploaded 1 files', '2025-11-24 03:38:18'),
+(8305, 1, 'Uploaded 1 files', '2025-11-24 03:51:27'),
+(8306, 1, 'Uploaded 1 files', '2025-11-24 03:53:25'),
+(8307, 1, 'Uploaded 1 files', '2025-11-24 04:00:09'),
+(8308, 1, 'Downloaded leave.docx', '2025-11-24 04:10:59'),
+(8309, 1, 'User logged in', '2025-11-24 06:09:15'),
+(8310, 1, 'Uploaded 1 files', '2025-11-24 06:11:35'),
+(8311, 1, 'Uploaded 1 files', '2025-11-24 06:18:02'),
+(8312, 1, 'Uploaded 1 files', '2025-11-24 06:21:35'),
+(8313, 1, 'Uploaded 1 files', '2025-11-24 06:27:01'),
+(8314, 1, 'User logged in', '2025-11-24 06:30:36'),
+(8315, 1, 'User logged in', '2025-11-24 06:36:57'),
+(8316, 1, 'User logged in', '2025-11-24 06:38:14'),
+(8317, 1, 'User logged in', '2025-11-24 06:40:01'),
+(8318, 1, 'User logged in', '2025-11-24 06:49:11'),
+(8319, 1, 'User logged in', '2025-11-24 06:53:54'),
+(8320, 1, 'User logged in', '2025-11-24 07:09:03'),
+(8321, 1, 'User logged in', '2025-11-24 07:16:00'),
+(8322, 1, 'Downloaded DTR_Format_Sample.xlsx', '2025-11-24 07:20:30'),
+(8323, 1, 'User logged in', '2025-11-24 07:46:38'),
+(8324, 1, 'Uploaded 1 files', '2025-11-24 07:49:27'),
+(8325, 1, 'User logged in', '2025-11-26 14:04:54'),
+(8326, 1, 'Updated workspaces for \"leave.pdf\"', '2025-11-26 19:28:24'),
+(8327, 1, 'Updated workspaces for \"leave.docx\"', '2025-11-26 19:28:37'),
+(8328, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-26 19:29:29'),
+(8329, 1, 'Downloaded HRM (1).pptx', '2025-11-26 19:40:00'),
+(8330, 1, 'Downloaded liv.pdf', '2025-11-26 19:42:07'),
+(8331, 1, 'Renamed file from \"leave (3).pdf\" to \"liv\"', '2025-11-26 19:43:28'),
+(8332, 1, 'Renamed file from \"leave (3).pdf\" to \"liv\"', '2025-11-26 19:43:29'),
+(8333, 1, 'Renamed file from \"HRM (1).pptx\" to \"dms\"', '2025-11-26 20:05:55'),
+(8334, 1, 'Renamed file from \"HRM (1).pptx\" to \"dms\"', '2025-11-26 20:05:56'),
+(8335, 1, 'Renamed file from \"dms\" to \"hgcdhscd\"', '2025-11-26 20:06:06'),
+(8336, 1, 'Renamed file from \"dms\" to \"hgcdhscd\"', '2025-11-26 20:06:06'),
+(8337, 1, 'Renamed file from \"hgcdhscd\" to \"ffgd\"', '2025-11-26 20:11:41'),
+(8338, 1, 'Renamed file from \"hgcdhscd\" to \"ffgd\"', '2025-11-26 20:11:41'),
+(8339, 1, 'Permanently deleted leave.pdf', '2025-11-26 20:11:59'),
+(8340, 1, 'Permanently deleted HRM.pptx', '2025-11-26 20:12:04'),
+(8341, 1, 'Renamed file from \"leave (2).pdf\" to \"dfcdsc.pdf\"', '2025-11-26 20:13:27'),
+(8342, 1, 'Renamed file from \"leave (2).pdf\" to \"dfcdsc.pdf\"', '2025-11-26 20:13:28'),
+(8343, 1, 'Deleted user: Lyrika', '2025-11-26 20:31:27'),
+(8344, 1, 'Renamed file from \"HRM.pptx\" to \"haha.pptx\"', '2025-11-26 21:02:14'),
+(8345, 1, 'Renamed file from \"HRM.pptx\" to \"haha.pptx\"', '2025-11-26 21:02:15'),
+(8346, 1, 'Renamed file from \"haha.pptx\" to \"hhjgsd.pptx\"', '2025-11-26 21:02:22'),
+(8347, 1, 'Renamed file from \"haha.pptx\" to \"hhjgsd.pptx\"', '2025-11-26 21:02:22'),
+(8348, 1, 'Downloaded hgdshsh.pptx', '2025-11-26 21:02:32'),
+(8349, 1, 'Restored file ID: 1098', '2025-11-26 21:05:35'),
+(8350, 1, 'Restored file ID: 1102', '2025-11-26 21:05:37'),
+(8351, 1, 'Restored file ID: 1103', '2025-11-26 21:05:40'),
+(8352, 1, 'Restored file ID: 1104', '2025-11-26 21:05:43'),
+(8353, 1, 'Restored file ID: 1105', '2025-11-26 21:05:45'),
+(8354, 1, 'Updated user: Raiza Roces', '2025-11-26 21:40:29'),
+(8355, 1, 'Updated user: Raiza Roces', '2025-11-26 21:40:51'),
+(8356, 1, 'Restored file ID: 1098', '2025-11-26 21:45:07'),
+(8357, 1, 'Downloaded leave (2).pdf', '2025-11-26 21:45:20'),
+(8358, 1, 'Updated user: Full name', '2025-11-26 21:54:49'),
+(8359, 1, 'Added user: sample name', '2025-11-26 22:01:34'),
+(8360, 1, 'Updated user: Full name', '2025-11-26 22:23:54'),
+(8361, 1, 'Uploaded 1 files', '2025-11-26 22:59:23'),
+(8362, 1, 'User logged in', '2025-11-27 00:18:45'),
+(8363, 1, 'User logged in', '2025-11-27 00:28:20'),
+(8364, 1, 'User logged in', '2025-11-27 00:37:30'),
+(8365, 1, 'User logged in', '2025-11-27 00:45:59'),
+(8366, 1, 'User logged in', '2025-11-27 01:27:02'),
+(8367, 1, 'Uploaded 1 files to 2 workspace(s)', '2025-11-27 01:29:14'),
+(8368, 1, 'Updated workspaces for \"leave.pdf\"', '2025-11-27 01:29:49'),
+(8369, 1, 'Unshared leave (3).pdf', '2025-11-27 02:08:09'),
+(8370, 1, 'Uploaded 1 files to 2 workspace(s)', '2025-11-27 02:08:51'),
+(8371, 1, 'Archived user: sample name', '2025-11-27 02:10:48'),
+(8372, 1, 'Restored file ID: 1108', '2025-11-27 02:11:22'),
+(8373, 1, 'Restored user: sample name', '2025-11-27 02:20:20'),
+(8374, 1, 'Added department: Nursing', '2025-11-27 02:39:15'),
+(8375, 1, 'Updated department: Finance', '2025-11-27 04:09:38'),
+(8376, 1, 'Updated department: HR', '2025-11-27 04:09:48'),
+(8377, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-27 04:24:29'),
+(8378, 1, 'Uploaded 1 files to 1 workspace(s)', '2025-11-27 04:24:35'),
+(8379, 1, 'User logged in', '2025-11-27 04:35:19'),
+(8380, 1, 'User logged in', '2025-11-27 04:36:28'),
+(8381, 1, 'User logged in', '2025-11-27 04:49:09'),
+(8382, 1, 'User logged in', '2025-11-27 05:21:50');
 
 -- --------------------------------------------------------
 
@@ -201,7 +366,8 @@ CREATE TABLE `categories` (
 INSERT INTO `categories` (`category_id`, `name`, `description`, `created_at`, `auto_created`, `is_unclassified`) VALUES
 (5001, 'Unclassified', 'Unknown file types', '2025-11-17 02:21:53', 1, 1),
 (5002, 'Resignation Letter', '', '2025-11-18 22:17:11', 1, 0),
-(5003, 'Leave Request Form', '', '2025-11-18 22:18:06', 1, 0);
+(5003, 'Leave Request Form', '', '2025-11-18 22:18:06', 1, 0),
+(5004, 'Resume / CV', 'Auto-created category for Resume / CV', '2025-11-24 02:26:40', 1, 0);
 
 -- --------------------------------------------------------
 
@@ -225,7 +391,8 @@ INSERT INTO `departments` (`department_id`, `name`, `user_id`, `created_at`) VAL
 (4002, 'Marketing', 1, '2025-11-17 02:21:47'),
 (4003, 'Sales', 1, '2025-11-17 02:21:47'),
 (4004, 'HR', 1, '2025-11-17 02:21:47'),
-(4005, 'Finance', 1, '2025-11-17 02:21:47');
+(4005, 'Finance', 1, '2025-11-17 02:21:47'),
+(4006, 'Nursing', 1, '2025-11-27 02:39:14');
 
 -- --------------------------------------------------------
 
@@ -242,10 +409,14 @@ CREATE TABLE `files` (
   `user_id` int(11) NOT NULL,
   `workspace_id` int(11) DEFAULT NULL,
   `category_id` int(11) DEFAULT NULL,
+  `department_id` int(11) DEFAULT NULL,
   `document_type` varchar(100) DEFAULT NULL,
   `classification_confidence` enum('Low','Medium','High') DEFAULT NULL,
   `classification_error` varchar(255) DEFAULT NULL,
   `text_sample` text DEFAULT NULL,
+  `editable_content` longtext DEFAULT NULL,
+  `is_editable` tinyint(1) DEFAULT 0,
+  `current_version` int(11) DEFAULT 1,
   `shared` tinyint(1) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `status` enum('active','archived','deleted') DEFAULT 'active',
@@ -257,11 +428,79 @@ CREATE TABLE `files` (
 -- Dumping data for table `files`
 --
 
-INSERT INTO `files` (`file_id`, `name`, `original_name`, `size`, `type`, `user_id`, `workspace_id`, `category_id`, `document_type`, `classification_confidence`, `classification_error`, `text_sample`, `shared`, `created_at`, `status`, `file_path`, `document_type_category_id`) VALUES
-(1061, 'leave.txt', 'leave.txt', 800, 'txt', 1, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\n mr. daniel cruz\n human resources manager\n technova solutions inc.\n makati city, metro manila\n subject: leave request\n dear mr. cruz,\n i would like to formally request a leave of abse...', 0, '2025-11-21 16:09:53', 'active', 'C:\\Users\\PLPASIG\\AppData\\Local\\Temp\\dms_uploads\\2025\\11\\user_1\\leave.txt', NULL),
-(1062, 'leave.pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', 0, '2025-11-21 22:01:53', 'active', 'C:\\Users\\PLPASIG\\AppData\\Local\\Temp\\dms_uploads\\2025\\11\\user_1\\leave.pdf', NULL),
-(1063, 'resignation.pdf', 'resignation.pdf', 37030, 'pdf', 1, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', 0, '2025-11-21 22:03:43', 'active', 'C:\\Users\\PLPASIG\\AppData\\Local\\Temp\\dms_uploads\\2025\\11\\user_1\\resignation.pdf', NULL),
-(1064, 'invoice-sample.pdf', 'invoice-sample.pdf', 61513, 'pdf', 1, NULL, NULL, 'Unclassified', 'Low', NULL, 'acme web solutions\n1234 cloud drive, makati city, 1200\nphone: (02) 5555-0123 | email: billing@acmeweb.ph\noctober 25, 2025\ninvoice no.: aw-2025-1001\ndue date: november 9, 2025\nbill to:\nbright star ente...', 0, '2025-11-21 22:04:06', 'active', 'C:\\Users\\PLPASIG\\AppData\\Local\\Temp\\dms_uploads\\2025\\11\\user_1\\invoice-sample.pdf', NULL);
+INSERT INTO `files` (`file_id`, `name`, `original_name`, `size`, `type`, `user_id`, `workspace_id`, `category_id`, `department_id`, `document_type`, `classification_confidence`, `classification_error`, `text_sample`, `editable_content`, `is_editable`, `current_version`, `shared`, `created_at`, `status`, `file_path`, `document_type_category_id`) VALUES
+(1096, 'leave.pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-24 03:19:12', 'active', 'fcd3ab61ee3844098b4bdb0da39d3dfbb447fe6f9b3689614637426fbfb57920', NULL),
+(1097, 'leave (1).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-24 03:38:17', 'active', '2338a573acf5d40accc00118ef8736510c5aa42238e1d174c65df763b11e072c', NULL),
+(1098, 'leave (2).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-24 03:51:26', 'active', '0a9a7524dcaf4b932f659ed2818b23ac3e3eb939c3035f71780e218f48456f96', NULL),
+(1099, 'leave.pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-24 03:53:25', 'deleted', '645ab26ebfbdcfc53af7bf3cc7a33201e7e5f4375947992adf492dd610c66840', NULL),
+(1100, 'leave.docx', 'leave.docx', 13936, 'docx', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-24 04:00:08', 'active', 'e6ab39587d29a81815653435e8a9076a9e95949948c6bdfcc7c45bdf6249fc16', NULL),
+(1101, 'resignation.docx', 'resignation.docx', 14217, 'docx', 1, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 0, '2025-11-24 06:11:35', 'active', '884656702b627f9060f8194f63055d0bfa3711abd589352ae69574e28f692730', NULL),
+(1102, 'DTR_Format_Sample.xlsx', 'DTR_Format_Sample.xlsx', 31273, 'xlsx', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-24 06:18:02', 'active', 'd293c47b6bb8b4f5338beff61c1387389cacee322b8d23ac7d42a199e85033eb', NULL),
+(1103, 'DMS.zip', 'DMS.zip', 682609, 'zip', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-24 06:21:34', 'active', 'd4a8285abdde924d16a16771fb8131147374e5d53a644c36897814712a399755', NULL),
+(1104, 'Logo.png', 'Logo.png', 300740, 'png', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-24 06:27:01', 'active', 'f249e2842a1e753a69433bf3b573d2edf93df3528ba4cd3d084a46f1a91fcd03', NULL),
+(1105, 'HRM.pptx', 'HRM.pptx', 7233592, 'pptx', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-24 07:49:27', 'active', '409e70262848f75b9c63c76939edfffb99308d5b92d1004fec0e1cbef1436727', NULL),
+(1106, 'HRM.pptx', 'HRM.pptx', 7233592, 'pptx', 1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 1, 0, '2025-11-26 19:29:28', 'deleted', 'e09b326a68330d5699c0c1e407d6cbf1997d3e05b3d2bfd09b63efd7a1fa17dc', NULL),
+(1107, 'leave (3).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 1, '2025-11-26 22:59:23', 'active', 'f5efc8b165eadba8f92baef41ded521ac2774880e398c15ad4edb80764fb030e', NULL),
+(1108, 'leave (4).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 01:29:13', 'active', 'c2f9b40b5a1a68ca5fb5a2b194c4f2ba664004db756dcaf8d016f76bd5bfad70', NULL),
+(1109, 'resignation.pdf', 'resignation.pdf', 37030, 'pdf', 1, NULL, NULL, NULL, 'Resignation Letter', 'Low', NULL, 'john daniel cabusas\npasig city, metro manila, 1600\njanden@email.com\n0911-000-4444\noctober 17, 2025\nmr. john p. cruz\nhuman resources manager\nbrighttech solutions inc.\nmandaluyong city, metro manila\nsub...', NULL, 0, 1, 1, '2025-11-27 02:08:51', 'active', 'ffd67339e33a8a191a86d3d141fa986862aa97911f5882788cb5d97356ecd203', NULL),
+(1110, 'leave (5).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 04:24:25', 'active', '7fc284357aa8201cd744a49062913da8dc1ba0966d8da31831521b974231cd3d', NULL),
+(1111, 'leave (6).pdf', 'leave.pdf', 17170, 'pdf', 1, NULL, NULL, NULL, 'Leave Request Form', 'Low', NULL, 'october 23, 2025\nmr. daniel cruz\nhuman resources manager\ntechnova solutions inc.\nmakati city, metro manila\nsubject: leave request\ndear mr. cruz,\ni would like to formally request a leave of absence fro...', NULL, 0, 1, 0, '2025-11-27 04:24:32', 'active', '9ca90b50c31ae5a2296ad8d5c53d023a9c89bf2067292f82c243b197b537285a', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `file_editors`
+--
+
+CREATE TABLE `file_editors` (
+  `editor_id` int(11) NOT NULL,
+  `file_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `session_id` varchar(255) DEFAULT NULL,
+  `last_activity` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `file_shares`
+--
+
+CREATE TABLE `file_shares` (
+  `share_id` int(11) NOT NULL,
+  `file_id` int(11) NOT NULL,
+  `shared_with_user_id` int(11) DEFAULT NULL,
+  `shared_with_department_id` int(11) DEFAULT NULL,
+  `permission` enum('viewer','editor') DEFAULT 'viewer',
+  `shared_by` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `file_shares`
+--
+
+INSERT INTO `file_shares` (`share_id`, `file_id`, `shared_with_user_id`, `shared_with_department_id`, `permission`, `shared_by`, `created_at`) VALUES
+(1, 1109, 4, NULL, 'editor', 1, '2025-11-27 02:37:41'),
+(2, 1109, 2, NULL, 'viewer', 1, '2025-11-27 02:37:47'),
+(3, 1109, NULL, 4005, 'viewer', 1, '2025-11-27 02:37:59');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `file_versions`
+--
+
+CREATE TABLE `file_versions` (
+  `version_id` int(11) NOT NULL,
+  `file_id` int(11) NOT NULL,
+  `version_number` int(11) NOT NULL,
+  `content` longtext DEFAULT NULL,
+  `content_hash` varchar(255) DEFAULT NULL,
+  `edited_by` int(11) NOT NULL,
+  `edit_summary` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -281,8 +520,28 @@ CREATE TABLE `file_workspaces` (
 --
 
 INSERT INTO `file_workspaces` (`file_workspace_id`, `file_id`, `workspace_id`, `added_at`) VALUES
-(10016, 1061, 2001, '2025-11-21 16:09:53'),
-(10017, 1064, 2001, '2025-11-21 22:04:06');
+(10032, 1096, 2001, '2025-11-24 03:19:12'),
+(10033, 1099, 2001, '2025-11-26 19:28:23'),
+(10034, 1099, 2002, '2025-11-26 19:28:23'),
+(10035, 1100, 2001, '2025-11-26 19:28:35'),
+(10036, 1100, 2002, '2025-11-26 19:28:35'),
+(10037, 1100, 2003, '2025-11-26 19:28:35'),
+(10038, 1106, 2001, '2025-11-26 19:29:28'),
+(10039, 1106, 2002, '2025-11-26 19:53:41'),
+(10044, 1104, 2001, '2025-11-26 19:53:42'),
+(10045, 1104, 2002, '2025-11-26 19:53:42'),
+(10047, 1103, 2001, '2025-11-26 20:07:25'),
+(10048, 1103, 2002, '2025-11-26 20:07:25'),
+(10050, 1105, 2001, '2025-11-26 21:04:20'),
+(10051, 1105, 2002, '2025-11-26 21:04:20'),
+(10052, 1108, 2001, '2025-11-27 01:29:13'),
+(10053, 1108, 2002, '2025-11-27 01:29:13'),
+(10054, 1107, 2002, '2025-11-27 01:29:47'),
+(10055, 1107, 2003, '2025-11-27 01:29:47'),
+(10056, 1109, 2001, '2025-11-27 02:08:51'),
+(10057, 1109, 2002, '2025-11-27 02:08:51'),
+(10058, 1110, 2001, '2025-11-27 04:24:28'),
+(10059, 1111, 2001, '2025-11-27 04:24:35');
 
 -- --------------------------------------------------------
 
@@ -342,7 +601,47 @@ INSERT INTO `sessions` (`sessions_id`, `user_id`, `email`, `timestamp`) VALUES
 (7025, 1, 'admin@example.com', '2025-11-21 12:19:27'),
 (7026, 1, 'admin@example.com', '2025-11-21 12:55:23'),
 (7027, 1, 'admin@example.com', '2025-11-21 21:53:59'),
-(7028, 1, 'admin@example.com', '2025-11-21 22:01:03');
+(7028, 1, 'admin@example.com', '2025-11-21 22:01:03'),
+(7029, 3, 'roces_raiza@plpasig.edu.ph', '2025-11-21 23:06:32'),
+(7030, 1, 'admin@example.com', '2025-11-22 03:15:19'),
+(7031, 3, 'roces_raiza@plpasig.edu.ph', '2025-11-22 03:56:52'),
+(7032, 1, 'admin@example.com', '2025-11-22 04:08:55'),
+(7033, 1, 'admin@example.com', '2025-11-22 04:08:56'),
+(7034, 1, 'admin@example.com', '2025-11-22 05:04:46'),
+(7035, 1, 'admin@example.com', '2025-11-22 05:14:54'),
+(7036, 1, 'admin@example.com', '2025-11-22 13:20:12'),
+(7037, 1, 'admin@example.com', '2025-11-23 11:16:46'),
+(7038, 1, 'admin@example.com', '2025-11-23 13:30:58'),
+(7039, 1, 'admin@example.com', '2025-11-23 13:47:10'),
+(7040, 1, 'admin@example.com', '2025-11-24 02:09:30'),
+(7041, 1, 'admin@example.com', '2025-11-24 02:24:26'),
+(7042, 1, 'admin@example.com', '2025-11-24 02:26:08'),
+(7043, 1, 'admin@example.com', '2025-11-24 02:30:32'),
+(7044, 1, 'admin@example.com', '2025-11-24 02:46:17'),
+(7045, 1, 'admin@example.com', '2025-11-24 03:02:03'),
+(7046, 1, 'admin@example.com', '2025-11-24 03:13:56'),
+(7047, 1, 'admin@example.com', '2025-11-24 03:17:55'),
+(7048, 1, 'admin@example.com', '2025-11-24 03:37:49'),
+(7049, 1, 'admin@example.com', '2025-11-24 06:09:15'),
+(7050, 1, 'admin@example.com', '2025-11-24 06:30:35'),
+(7051, 1, 'admin@example.com', '2025-11-24 06:36:57'),
+(7052, 1, 'admin@example.com', '2025-11-24 06:38:14'),
+(7053, 1, 'admin@example.com', '2025-11-24 06:40:00'),
+(7054, 1, 'admin@example.com', '2025-11-24 06:49:10'),
+(7055, 1, 'admin@example.com', '2025-11-24 06:53:54'),
+(7056, 1, 'admin@example.com', '2025-11-24 07:09:03'),
+(7057, 1, 'admin@example.com', '2025-11-24 07:16:00'),
+(7058, 1, 'admin@example.com', '2025-11-24 07:46:38'),
+(7059, 1, 'admin@example.com', '2025-11-26 14:04:53'),
+(7060, 1, 'admin@example.com', '2025-11-27 00:18:44'),
+(7061, 1, 'admin@example.com', '2025-11-27 00:28:19'),
+(7062, 1, 'admin@example.com', '2025-11-27 00:37:30'),
+(7063, 1, 'admin@example.com', '2025-11-27 00:45:59'),
+(7064, 1, 'admin@example.com', '2025-11-27 01:27:01'),
+(7065, 1, 'admin@example.com', '2025-11-27 04:35:18'),
+(7066, 1, 'admin@example.com', '2025-11-27 04:36:28'),
+(7067, 1, 'admin@example.com', '2025-11-27 04:49:08'),
+(7068, 1, 'admin@example.com', '2025-11-27 05:21:50');
 
 -- --------------------------------------------------------
 
@@ -375,10 +674,10 @@ CREATE TABLE `users` (
   `name` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `role` enum('admin','staff') NOT NULL,
+  `role` enum('system_admin','department_admin','staff') NOT NULL DEFAULT 'staff',
   `department_id` int(11) NOT NULL,
   `profile_image` varchar(255) DEFAULT NULL,
-  `status` enum('active','inactive','archived') DEFAULT 'active',
+  `status` enum('active','archived') NOT NULL DEFAULT 'active',
   `archive_reason` varchar(100) DEFAULT NULL,
   `archive_notes` text DEFAULT NULL,
   `archived_at` datetime DEFAULT NULL,
@@ -391,10 +690,12 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `name`, `email`, `password`, `role`, `department_id`, `profile_image`, `status`, `archive_reason`, `archive_notes`, `archived_at`, `created_at`, `updated_at`) VALUES
-(1, 'System Admin', 'admin@example.com', 'admin123', 'admin', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-17 02:21:49', '2025-11-21 12:44:00'),
+(1, 'System Admin', 'admin@example.com', 'admin123', 'system_admin', 4004, '/api/uploads/profile_images/profile_1_1764211004.png', 'active', NULL, NULL, NULL, '2025-11-17 02:21:49', '2025-11-27 04:09:46'),
 (2, 'Jane Doe', 'jane@example.com', 'jane123', 'staff', 4002, NULL, 'active', NULL, NULL, NULL, '2025-11-17 02:21:49', '2025-11-17 02:21:49'),
-(3, 'Raiza Roces', 'roces_raiza@plpasig.edu.ph', 'qwerty', 'admin', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-18 22:10:35', '2025-11-21 21:35:24'),
-(4, 'Full name', 'fname@gmail.com', 'qwerty', 'staff', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-21 15:29:52', '2025-11-21 15:29:52');
+(3, 'Raiza Roces', 'roces_raiza@plpasig.edu.ph', 'qwerty', 'department_admin', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-18 22:10:35', '2025-11-27 01:26:31'),
+(4, 'Full name', 'fname@gmail.com', 'qwerty', 'system_admin', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-21 15:29:52', '2025-11-27 01:26:39'),
+(5, 'Glaiza Vallejos', 'vallejos_glaiza@plpasig.edu.ph', '123456', 'staff', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-22 03:40:51', '2025-11-22 03:59:25'),
+(6, 'sample name', 'sample@gmail.com', 'qwerty', 'staff', 4001, NULL, 'active', NULL, NULL, NULL, '2025-11-26 22:01:32', '2025-11-27 02:20:17');
 
 -- --------------------------------------------------------
 
@@ -474,10 +775,43 @@ ALTER TABLE `departments`
 --
 ALTER TABLE `files`
   ADD PRIMARY KEY (`file_id`),
-  ADD KEY `user_id` (`user_id`),
   ADD KEY `workspace_id` (`workspace_id`),
   ADD KEY `category_id` (`category_id`),
-  ADD KEY `document_type_category_id` (`document_type_category_id`);
+  ADD KEY `document_type_category_id` (`document_type_category_id`),
+  ADD KEY `files_ibfk_5` (`department_id`),
+  ADD KEY `idx_files_user_id` (`user_id`),
+  ADD KEY `idx_files_status` (`status`),
+  ADD KEY `idx_files_shared` (`shared`);
+
+--
+-- Indexes for table `file_editors`
+--
+ALTER TABLE `file_editors`
+  ADD PRIMARY KEY (`editor_id`),
+  ADD UNIQUE KEY `unique_editor` (`file_id`,`user_id`),
+  ADD KEY `file_id` (`file_id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `file_shares`
+--
+ALTER TABLE `file_shares`
+  ADD PRIMARY KEY (`share_id`),
+  ADD KEY `file_id` (`file_id`),
+  ADD KEY `shared_with_user_id` (`shared_with_user_id`),
+  ADD KEY `shared_with_department_id` (`shared_with_department_id`),
+  ADD KEY `idx_file_shares_file` (`file_id`),
+  ADD KEY `idx_file_shares_user` (`shared_with_user_id`),
+  ADD KEY `idx_file_shares_dept` (`shared_with_department_id`);
+
+--
+-- Indexes for table `file_versions`
+--
+ALTER TABLE `file_versions`
+  ADD PRIMARY KEY (`version_id`),
+  ADD UNIQUE KEY `unique_version` (`file_id`,`version_number`),
+  ADD KEY `file_id` (`file_id`),
+  ADD KEY `edited_by` (`edited_by`);
 
 --
 -- Indexes for table `file_workspaces`
@@ -512,7 +846,9 @@ ALTER TABLE `settings`
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `email` (`email`),
-  ADD KEY `department_id` (`department_id`);
+  ADD KEY `idx_users_role` (`role`),
+  ADD KEY `idx_users_status` (`status`),
+  ADD KEY `idx_users_department` (`department_id`);
 
 --
 -- Indexes for table `workspaces`
@@ -537,13 +873,13 @@ ALTER TABLE `workspace_members`
 -- AUTO_INCREMENT for table `activity_log`
 --
 ALTER TABLE `activity_log`
-  MODIFY `activity_log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8218;
+  MODIFY `activity_log_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8383;
 
 --
 -- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5004;
+  MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5005;
 
 --
 -- AUTO_INCREMENT for table `departments`
@@ -555,13 +891,31 @@ ALTER TABLE `departments`
 -- AUTO_INCREMENT for table `files`
 --
 ALTER TABLE `files`
-  MODIFY `file_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1065;
+  MODIFY `file_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1112;
+
+--
+-- AUTO_INCREMENT for table `file_editors`
+--
+ALTER TABLE `file_editors`
+  MODIFY `editor_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `file_shares`
+--
+ALTER TABLE `file_shares`
+  MODIFY `share_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `file_versions`
+--
+ALTER TABLE `file_versions`
+  MODIFY `version_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `file_workspaces`
 --
 ALTER TABLE `file_workspaces`
-  MODIFY `file_workspace_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10018;
+  MODIFY `file_workspace_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10060;
 
 --
 -- AUTO_INCREMENT for table `reset_codes`
@@ -573,7 +927,7 @@ ALTER TABLE `reset_codes`
 -- AUTO_INCREMENT for table `sessions`
 --
 ALTER TABLE `sessions`
-  MODIFY `sessions_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7029;
+  MODIFY `sessions_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7069;
 
 --
 -- AUTO_INCREMENT for table `settings`
@@ -616,7 +970,30 @@ ALTER TABLE `files`
   ADD CONSTRAINT `files_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
   ADD CONSTRAINT `files_ibfk_2` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces` (`workspace_id`) ON DELETE SET NULL,
   ADD CONSTRAINT `files_ibfk_3` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `files_ibfk_4` FOREIGN KEY (`document_type_category_id`) REFERENCES `categories` (`category_id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `files_ibfk_4` FOREIGN KEY (`document_type_category_id`) REFERENCES `categories` (`category_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `files_ibfk_5` FOREIGN KEY (`department_id`) REFERENCES `departments` (`department_id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `file_editors`
+--
+ALTER TABLE `file_editors`
+  ADD CONSTRAINT `file_editors_ibfk_1` FOREIGN KEY (`file_id`) REFERENCES `files` (`file_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `file_editors_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `file_shares`
+--
+ALTER TABLE `file_shares`
+  ADD CONSTRAINT `file_shares_ibfk_1` FOREIGN KEY (`file_id`) REFERENCES `files` (`file_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `file_shares_ibfk_2` FOREIGN KEY (`shared_with_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `file_shares_ibfk_3` FOREIGN KEY (`shared_with_department_id`) REFERENCES `departments` (`department_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `file_versions`
+--
+ALTER TABLE `file_versions`
+  ADD CONSTRAINT `file_versions_ibfk_1` FOREIGN KEY (`file_id`) REFERENCES `files` (`file_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `file_versions_ibfk_2` FOREIGN KEY (`edited_by`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `file_workspaces`

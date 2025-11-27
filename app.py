@@ -581,7 +581,7 @@ def download_file(file_id):
             return jsonify({'error': 'Unauthorized'}), 401
         
         permission = get_user_file_permission(file_record, request_user)
-        if permission not in ('owner', 'editor', 'admin'):
+        if permission not in ('owner', 'editor', 'admin', 'viewer'):
             return jsonify({'error': 'Access denied'}), 403
         
         file_path = resolve_file_path(file_record)

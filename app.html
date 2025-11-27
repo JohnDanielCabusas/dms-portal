@@ -3476,6 +3476,7 @@ async function renderFiles() {
       div.onclick = () => openFilePreview(f.file_id);
       const accessLabel = getPermissionLabel(f.current_user_permission);
       const canEdit = !!f.can_edit;
+      const canRename = !!f.can_edit;
       const canManageShare = ['owner', 'admin'].includes(f.current_user_permission);
       div.innerHTML = `
         <input type="checkbox" class="doc-checkbox" data-file-id="${f.file_id}" 
@@ -3494,9 +3495,10 @@ async function renderFiles() {
       <button class="icon-btn" title="Edit Online" onclick="event.stopPropagation(); openFileEditor(${f.file_id})">
         <i class="fa-solid fa-pen-to-square"></i>
       </button>` : ''}
+    ${canRename ? `
     <button class="icon-btn" title="Rename" onclick="event.stopPropagation(); startRenameFileFromButton(${f.file_id})">
         <i class="fa-solid fa-pen"></i>
-    </button>
+    </button>` : ''}
     <button class="icon-btn" ${canManageShare ? '' : 'style="opacity:0.4;cursor:not-allowed"'} ${canManageShare ? `onclick="event.stopPropagation(); openFileShareModal(${f.file_id})"` : 'onclick="event.stopPropagation();"'} title="${canManageShare ? 'Manage Sharing' : 'Shared access (view only)'}">
         ${f.shared ? '<i class="fa-solid fa-link"></i>' : '<i class="fa-regular fa-circle"></i>'}
     </button>
@@ -5031,6 +5033,8 @@ async function openFilePreview(fileId) {
         }
     }
 
+    const canRename = !!file.can_edit;
+
     openModal(`
         <div class="file-preview-header">
           <div style="display:flex;align-items:center;gap:12px">
@@ -5081,9 +5085,10 @@ async function openFilePreview(fileId) {
   </div>
 
         <div class="file-preview-actions">
+          ${canRename ? `
           <button class="btn-secondary" onclick="openRenameFromPreview(${file.file_id}, '${(file.original_name || file.name).replace(/'/g, "\\'")}')">
             <i class="fa-solid fa-i-cursor"></i> Rename
-          </button>
+          </button>` : ''}
           <button onclick="downloadFile(${file.file_id})">
             <i class="fa-solid fa-download"></i> Download
           </button>

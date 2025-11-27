@@ -1759,6 +1759,12 @@
         margin-bottom: 8px;
       }
     </style>
+
+    <!-- Report export libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   </head>
   <body>
     <div class="topbar">
@@ -5983,45 +5989,171 @@ async function deleteUserAPI(userId) {
   });
 }
 
+const USER_REPORT_HEADERS = ['ID', 'Full Name', 'Email Address', 'Role', 'Department', 'Status', 'Date Created'];
+const USER_REPORT_TITLE = 'User Management Report';
+const USER_REPORT_BRAND = 'DOCUMENT MANAGEMENT SYSTEM';
+const SCRIPT_SOURCES = {
+  JSZip: [
+    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js',
+    'https://cdn.jsdelivr.net/npm/jszip@3.7.1/dist/jszip.min.js'
+  ]
+};
+const scriptLoadPromises = {};
+
+function getReportTimestamp(date = new Date()) {
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.async = true;
+    script.onload = () => {
+      script.remove();
+      resolve();
+    };
+    script.onerror = () => {
+      script.remove();
+      reject(new Error(`Failed to load script: ${url}`));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function ensureLibrary(globalName) {
+  if (window[globalName]) {
+    return Promise.resolve(window[globalName]);
+  }
+  const sources = SCRIPT_SOURCES[globalName];
+  if (!sources || sources.length === 0) {
+    return Promise.resolve(undefined);
+  }
+  if (!scriptLoadPromises[globalName]) {
+    scriptLoadPromises[globalName] = (async () => {
+      for (const src of sources) {
+        try {
+          await loadScript(src);
+          if (window[globalName]) {
+            return window[globalName];
+          }
+        } catch (error) {
+          console.warn(`Failed to load ${globalName} from ${src}:`, error);
+        }
+      }
+      throw new Error(`Failed to load ${globalName} library.`);
+    })();
+  }
+  return scriptLoadPromises[globalName];
+}
+
+function getUserRoleLabel(role) {
+  if (role === 'system_admin') return 'System Administrator';
+  if (role === 'department_admin') return 'Department Administrator';
+  return 'Staff';
+}
+
+function formatUserCreatedDate(dateInput) {
+  try {
+    return new Date(dateInput || Date.now()).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (err) {
+    console.warn('Date formatting error:', err);
+    return '';
+  }
+}
+
+function buildUserReportRows(users, departments) {
+  return users.map((u) => {
+    const dept = departments.find((d) => d.department_id === u.department_id) || { name: 'Not assigned' };
+    return [
+      u.user_id,
+      u.name || '',
+      u.email || '',
+      getUserRoleLabel(u.role),
+      dept.name || 'Not assigned',
+      u.status === 'active' ? 'Active' : 'Archived',
+      formatUserCreatedDate(u.created_at)
+    ];
+  });
+}
+
+function getUserReportStats(users) {
+  const active = users.filter((u) => u.status === 'active').length;
+  const archived = users.filter((u) => u.status === 'archived').length;
+  return {
+    total: users.length,
+    active,
+    archived
+  };
+}
+
+function triggerReportDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+
 // Open export menu
 async function openExportMenu() {
   // Get filtered data for preview
   const { filteredUsers, departments } = await getFilteredUsersData();
-  const activeCount = filteredUsers.filter(u => u.status === 'active').length;
-  const archivedCount = filteredUsers.filter(u => u.status === 'archived').length;
-  
-  // Build preview table (limited to first 5 rows)
-  let previewRows = '';
-  filteredUsers.slice(0, 5).forEach((u, index) => {
-    const dept = departments.find(d => d.department_id === u.department_id) || { name: "Not assigned" };
-    const roleLabel = u.role === 'system_admin' ? 'System Admin' : u.role === 'department_admin' ? 'Department Admin' : 'Staff';
-    previewRows += `
+  const stats = getUserReportStats(filteredUsers);
+  const reportRows = buildUserReportRows(filteredUsers, departments);
+  const previewRows = reportRows.slice(0, 5).map((row, index) => `
       <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
-        <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center; font-size: 12px;">${u.user_id}</td>
-        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(u.name)}</td>
-        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(u.email)}</td>
-        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(roleLabel)}</td>
-        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(dept.name)}</td>
+        <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center; font-size: 12px;">${row[0]}</td>
+        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(row[1])}</td>
+        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(row[2])}</td>
+        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(row[3])}</td>
+        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(row[4])}</td>
         <td style="padding: 8px; border: 1px solid #dee2e6; text-align: center; font-size: 12px;">
-          <span style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; ${u.status === 'active' ? 'background-color: #d4edda; color: #155724;' : 'background-color: #fff3cd; color: #856404;'}">${u.status === 'active' ? 'Active' : 'Archived'}</span>
+          <span style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; ${row[5] === 'Active' ? 'background-color: #d4edda; color: #155724;' : 'background-color: #fff3cd; color: #856404;'}">${row[5]}</span>
         </td>
+        <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px;">${escapeHtml(row[6])}</td>
       </tr>
-    `;
-  });
+  `).join('');
   
-  const previewMore = filteredUsers.length > 5 ? `<tr><td colspan="6" style="padding: 8px; text-align: center; font-size: 11px; color: #6c757d; font-style: italic;">... and ${filteredUsers.length - 5} more rows</td></tr>` : '';
+  const previewMore = filteredUsers.length > 5
+    ? `<tr><td colspan="7" style="padding: 8px; text-align: center; font-size: 11px; color: #6c757d; font-style: italic;">... and ${filteredUsers.length - 5} more rows</td></tr>`
+    : '';
+  
+  const generatedAt = getReportTimestamp();
   
   openModal(`<h3>Export User List</h3>
     <div style="display:flex;flex-direction:column;gap:20px">
       <!-- Preview Section -->
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px">
-        <div style="font-weight:600;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px">
-          <i class="fa-solid fa-eye"></i> Report Preview
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;margin-bottom:12px">
+          <div>
+            <div style="font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;font-size:16px;">
+              <i class="fa-solid fa-eye"></i> User Management Report Preview
+            </div>
+            <div class="small-muted">Snapshot of the data that will be exported. Read-only.</div>
+          </div>
+          <div class="small-muted" style="font-size:12px;text-align:right">
+            <div><strong>Generated:</strong> ${generatedAt}</div>
+            <div><strong>Records:</strong> ${stats.total}</div>
+          </div>
         </div>
         <div style="margin-bottom:12px;display:flex;gap:16px;font-size:12px">
-          <div><strong>Total Users:</strong> ${filteredUsers.length}</div>
-          <div><strong>Active:</strong> ${activeCount}</div>
-          <div><strong>Archived:</strong> ${archivedCount}</div>
+          <div><strong>Total Users:</strong> ${stats.total}</div>
+          <div><strong>Active:</strong> ${stats.active}</div>
+          <div><strong>Archived:</strong> ${stats.archived}</div>
         </div>
         <div style="overflow-x:auto;max-height:200px;overflow-y:auto">
           <table style="width:100%;border-collapse:collapse;font-size:11px">
@@ -6033,6 +6165,7 @@ async function openExportMenu() {
                 <th style="padding:8px;border:1px solid #2c3e50;font-size:11px">Role</th>
                 <th style="padding:8px;border:1px solid #2c3e50;font-size:11px">Department</th>
                 <th style="padding:8px;border:1px solid #2c3e50;text-align:center;font-size:11px">Status</th>
+                <th style="padding:8px;border:1px solid #2c3e50;font-size:11px">Date Created</th>
               </tr>
             </thead>
             <tbody>
@@ -6193,6 +6326,7 @@ async function handleExportConfirm(format) {
   
   showToast(`Preparing ${format.toUpperCase()} export...`, 'info');
   
+  try {
   const { filteredUsers, departments } = await getFilteredUsersData();
   
   if (format === 'excel') {
@@ -6202,160 +6336,95 @@ async function handleExportConfirm(format) {
   } else if (format === 'docx') {
     await exportToDOCX(filteredUsers, departments, fileName);
   } else {
-    showToast('Invalid export format', 'error');
-    return;
+      throw new Error('Invalid export format');
   }
   
   showToast(`User list exported successfully as ${format.toUpperCase()}`, 'success');
+  } catch (error) {
+    console.error(`Export ${format} failed:`, error);
+    showToast(error?.message || `Failed to export user list as ${format.toUpperCase()}`, 'error');
+  }
 }
 
-// Export to Excel - Using HTML table format for better Excel compatibility with design
+// Export to Excel using SheetJS for a native XLSX file
 async function exportToExcel(users, departments, filename) {
-  const currentDate = new Date().toLocaleString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  
-  const activeCount = users.filter(u => u.status === 'active').length;
-  const archivedCount = users.filter(u => u.status === 'archived').length;
-  
-  // Create HTML table with Excel-compatible formatting
-  let tableRows = '';
-  users.forEach((u, index) => {
-    const dept = departments.find(d => d.department_id === u.department_id) || { name: "Not assigned" };
-    const roleLabel = u.role === 'system_admin' ? 'System Administrator' : u.role === 'department_admin' ? 'Department Administrator' : 'Staff';
-    const statusLabel = u.status === 'active' ? 'Active' : 'Archived';
-    const createdDate = new Date(u.created_at || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const bgColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
-    
-    tableRows += `
-      <tr style="background-color: ${bgColor};">
-        <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; min-width: 60px; word-wrap: break-word; vertical-align: middle; font-size: 11pt;">${u.user_id}</td>
-        <td style="padding: 12px; border: 1px solid #dee2e6; min-width: 180px; word-wrap: break-word; vertical-align: middle; font-size: 11pt;">${escapeHtml(u.name)}</td>
-        <td style="padding: 12px; border: 1px solid #dee2e6; min-width: 220px; word-wrap: break-word; vertical-align: middle; font-size: 11pt;">${escapeHtml(u.email)}</td>
-        <td style="padding: 12px; border: 1px solid #dee2e6; min-width: 150px; word-wrap: break-word; vertical-align: middle; font-size: 11pt;">${escapeHtml(roleLabel)}</td>
-        <td style="padding: 12px; border: 1px solid #dee2e6; min-width: 150px; word-wrap: break-word; vertical-align: middle; font-size: 11pt;">${escapeHtml(dept.name)}</td>
-        <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; min-width: 100px; word-wrap: break-word; vertical-align: middle; font-size: 11pt;">
-          <span style="padding: 4px 10px; border-radius: 4px; font-size: 10pt; font-weight: 600; ${u.status === 'active' ? 'background-color: #d4edda; color: #155724;' : 'background-color: #fff3cd; color: #856404;'}">${statusLabel}</span>
-        </td>
-        <td style="padding: 12px; border: 1px solid #dee2e6; min-width: 150px; word-wrap: break-word; vertical-align: middle; font-size: 11pt;">${escapeHtml(createdDate)}</td>
-      </tr>
-    `;
-  });
-  
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="ProgId" content="Excel.Sheet">
-      <style>
-        @page { margin: 0.5in; }
-        body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; color: #2c3e50; font-size: 22pt; font-weight: 700; }
-        .header h2 { margin: 5px 0 0 0; color: #7f8c8d; font-size: 16pt; font-weight: 400; }
-        .metadata { margin: 15px 0; padding: 12px; background-color: #f8f9fa; border-left: 4px solid #3498db; }
-        .metadata p { margin: 4px 0; font-size: 11pt; }
-        .stats { display: table; width: 100%; margin: 15px 0; }
-        .stat-box { display: table-cell; text-align: center; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 5px; margin: 0 5px; }
-        .stat-box h3 { margin: 0; font-size: 20pt; font-weight: 700; }
-        .stat-box p { margin: 4px 0 0 0; font-size: 11pt; }
-        .section-title { font-size: 14pt; font-weight: 600; color: #2c3e50; margin: 20px 0 10px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background-color: #34495e; color: white; padding: 14px; text-align: left; font-weight: 600; border: 1px solid #2c3e50; font-size: 11pt; }
-        td { padding: 12px; border: 1px solid #dee2e6; font-size: 11pt; }
-        .footer { margin-top: 20px; padding-top: 15px; border-top: 2px solid #ecf0f1; text-align: center; color: #7f8c8d; font-size: 10pt; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>DOCUMENT MANAGEMENT SYSTEM</h1>
-        <h2>User List Report</h2>
-      </div>
-      
-      <div class="metadata">
-        <p><strong>Report Generated:</strong> ${currentDate}</p>
-        <p><strong>Report Type:</strong> User Management Export</p>
-      </div>
-      
-      <div class="stats">
-        <div class="stat-box">
-          <h3>${users.length}</h3>
-          <p>Total Users</p>
-        </div>
-        <div class="stat-box" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-          <h3>${activeCount}</h3>
-          <p>Active Users</p>
-        </div>
-        <div class="stat-box" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-          <h3>${archivedCount}</h3>
-          <p>Archived Users</p>
-        </div>
-      </div>
-      
-      <div class="section-title">User Details</div>
-      <table>
-        <thead>
-          <tr>
-            <th style="text-align: center; width: 60px;">ID</th>
-            <th style="min-width: 180px;">Full Name</th>
-            <th style="min-width: 220px;">Email Address</th>
-            <th style="min-width: 150px;">Role</th>
-            <th style="min-width: 150px;">Department</th>
-            <th style="text-align: center; min-width: 100px;">Status</th>
-            <th style="min-width: 150px;">Date Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-      
-      <div class="footer">
-        <p>This report was generated automatically by the Document Management System</p>
-        <p>Confidential - For Internal Use Only</p>
-      </div>
-    </body>
-    </html>
-  `;
-  
-  // Convert to CSV for proper Excel compatibility (.xlsx via CSV)
-  let csvContent = '\ufeff'; // BOM for UTF-8
-  csvContent += 'ID,Full Name,Email Address,Role,Department,Status,Date Created\n';
-  users.forEach(u => {
-    const dept = departments.find(d => d.department_id === u.department_id) || { name: "Not assigned" };
-    const roleLabel = u.role === 'system_admin' ? 'System Administrator' : u.role === 'department_admin' ? 'Department Administrator' : 'Staff';
-    const statusLabel = u.status === 'active' ? 'Active' : 'Archived';
-    const createdDate = new Date(u.created_at || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    
-    // Escape CSV values (handle commas and quotes)
-    const escapeCsv = (val) => {
-      if (val === null || val === undefined) return '';
-      const str = String(val);
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return '"' + str.replace(/"/g, '""') + '"';
+  if (!window.XLSX) {
+    throw new Error('Excel export library failed to load.');
+  }
+
+  try {
+    const reportRows = buildUserReportRows(users, departments);
+    const stats = getUserReportStats(users);
+    const generatedAt = getReportTimestamp();
+
+    const summaryLine = `Total Users: ${stats.total} | Active: ${stats.active} | Archived: ${stats.archived}`;
+    const metadataRows = [
+      [USER_REPORT_BRAND],
+      [USER_REPORT_TITLE],
+      [`Generated: ${generatedAt}`],
+      [summaryLine],
+      []
+    ];
+
+    const worksheetData = [...metadataRows, USER_REPORT_HEADERS, ...reportRows];
+    const worksheet = window.XLSX.utils.aoa_to_sheet(worksheetData);
+    worksheet['!cols'] = [
+      { wch: 10 },
+      { wch: 34 },
+      { wch: 50 },
+      { wch: 28 },
+      { wch: 32 },
+      { wch: 16 },
+      { wch: 30 }
+    ];
+
+    const totalColumns = USER_REPORT_HEADERS.length;
+    worksheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalColumns - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: totalColumns - 1 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: totalColumns - 1 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: totalColumns - 1 } }
+    ];
+
+    const setCellStyle = (cellAddress, style) => {
+      if (worksheet[cellAddress]) {
+        worksheet[cellAddress].s = style;
       }
-      return str;
     };
-    
-    csvContent += `${u.user_id},${escapeCsv(u.name)},${escapeCsv(u.email)},${escapeCsv(roleLabel)},${escapeCsv(dept.name)},${escapeCsv(statusLabel)},${escapeCsv(createdDate)}\n`;
-  });
-  
-  // Create blob and download as .xlsx (using CSV format that Excel can open)
-  const blob = new Blob([csvContent], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8;' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
+
+    setCellStyle('A1', { font: { bold: true, sz: 16 }, alignment: { horizontal: 'center' } });
+    setCellStyle('A2', { font: { bold: true, sz: 14 }, alignment: { horizontal: 'center' } });
+    setCellStyle('A3', { font: { italic: true }, alignment: { horizontal: 'center' } });
+    setCellStyle('A4', { font: { bold: true }, alignment: { horizontal: 'center', wrapText: true } });
+
+    const headerRowIndex = metadataRows.length;
+    for (let col = 0; col < totalColumns; col++) {
+      const cellAddress = window.XLSX.utils.encode_cell({ r: headerRowIndex, c: col });
+      setCellStyle(cellAddress, {
+        font: { bold: true, color: { rgb: 'FFFFFFFF' } },
+        fill: { fgColor: { rgb: '34495E' } },
+        alignment: { horizontal: 'center' }
+      });
+    }
+
+    const workbook = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(workbook, worksheet, 'User Report');
+
+    const workbookArray = window.XLSX.write(workbook, {
+      bookType: 'xlsx',
+      type: 'array',
+      cellStyles: true
+    });
+
+    const blob = new Blob([workbookArray], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
   const exportFileName = filename || `User_Management_Report_${new Date().toISOString().split('T')[0]}`;
-  a.download = `${exportFileName}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
+    triggerReportDownload(blob, `${exportFileName}.xlsx`);
+  } catch (error) {
+    console.error('Excel export error:', error);
+    throw error;
+  }
 }
 
 // Helper function to escape HTML
@@ -6370,342 +6439,337 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
-// Export to PDF
-async function exportToPDF(users, departments, filename) {
-  // Create HTML content for PDF
-  const currentDate = new Date().toLocaleString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  
-  const activeCount = users.filter(u => u.status === 'active').length;
-  const archivedCount = users.filter(u => u.status === 'archived').length;
-  
-  let tableRows = '';
-  users.forEach((u, index) => {
-    const dept = departments.find(d => d.department_id === u.department_id) || { name: "Not assigned" };
-    const roleLabel = u.role === 'system_admin' ? 'System Administrator' : u.role === 'department_admin' ? 'Department Administrator' : 'Staff';
-    const statusLabel = u.status === 'active' ? 'Active' : 'Archived';
-    const bgColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
-    
-    tableRows += `
-      <tr style="background-color: ${bgColor};">
-        <td style="padding: 6px; border: 1px solid #dee2e6; text-align: center; font-size: 9px;">${u.user_id}</td>
-        <td style="padding: 6px; border: 1px solid #dee2e6; font-size: 9px; word-wrap: break-word;">${escapeHtml(u.name)}</td>
-        <td style="padding: 6px; border: 1px solid #dee2e6; font-size: 9px; word-wrap: break-word;">${escapeHtml(u.email)}</td>
-        <td style="padding: 6px; border: 1px solid #dee2e6; font-size: 9px; word-wrap: break-word;">${escapeHtml(roleLabel)}</td>
-        <td style="padding: 6px; border: 1px solid #dee2e6; font-size: 9px; word-wrap: break-word;">${escapeHtml(dept.name)}</td>
-        <td style="padding: 6px; border: 1px solid #dee2e6; text-align: center; font-size: 9px;">
-          <span style="padding: 3px 6px; border-radius: 3px; font-size: 8px; font-weight: 600; ${u.status === 'active' ? 'background-color: #d4edda; color: #155724;' : 'background-color: #fff3cd; color: #856404;'}">${statusLabel}</span>
-        </td>
-        <td style="padding: 6px; border: 1px solid #dee2e6; font-size: 9px; word-wrap: break-word;">${escapeHtml(new Date(u.created_at || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }))}</td>
-      </tr>
-    `;
-  });
-  
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>User List Report</title>
-      <style>
-        @page { 
-          margin: 15mm 10mm; 
-          size: A4 landscape;
-        }
-        body { 
-          font-family: 'Arial', sans-serif; 
-          margin: 0; 
-          padding: 15px; 
-          color: #333; 
-          font-size: 10px;
-        }
-        .header { 
-          text-align: center; 
-          margin-bottom: 20px; 
-          border-bottom: 3px solid #2c3e50; 
-          padding-bottom: 15px; 
-        }
-        .header h1 { 
-          margin: 0; 
-          color: #2c3e50; 
-          font-size: 22px; 
-          font-weight: 700; 
-        }
-        .header h2 { 
-          margin: 8px 0 0 0; 
-          color: #7f8c8d; 
-          font-size: 14px; 
-          font-weight: 400; 
-        }
-        .metadata { 
-          margin: 15px 0; 
-          padding: 12px; 
-          background-color: #f8f9fa; 
-          border-left: 4px solid #3498db; 
-        }
-        .metadata p { 
-          margin: 4px 0; 
-          font-size: 11px; 
-        }
-        .metadata strong { 
-          color: #2c3e50; 
-        }
-        .stats { 
-          display: flex; 
-          justify-content: space-around; 
-          margin: 20px 0; 
-        }
-        .stat-box { 
-          text-align: center; 
-          padding: 12px; 
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-          color: white; 
-          border-radius: 6px; 
-          flex: 1; 
-          margin: 0 8px; 
-        }
-        .stat-box h3 { 
-          margin: 0; 
-          font-size: 24px; 
-          font-weight: 700; 
-        }
-        .stat-box p { 
-          margin: 4px 0 0 0; 
-          font-size: 11px; 
-          opacity: 0.9; 
-        }
-        .section-title { 
-          font-size: 14px; 
-          font-weight: 600; 
-          color: #2c3e50; 
-          margin: 20px 0 10px 0; 
-          padding-bottom: 8px; 
-          border-bottom: 2px solid #ecf0f1; 
-        }
-        table { 
-          width: 100%; 
-          border-collapse: collapse; 
-          margin-top: 15px; 
-          font-size: 9px;
-          table-layout: fixed;
-        }
-        th { 
-          background-color: #34495e; 
-          color: white; 
-          padding: 8px 6px; 
-          text-align: left; 
-          font-weight: 600; 
-          border: 1px solid #2c3e50; 
-          font-size: 9px;
-          word-wrap: break-word;
-        }
-        td { 
-          padding: 6px; 
-          border: 1px solid #dee2e6; 
-          font-size: 9px;
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-        }
-        .footer { 
-          margin-top: 20px; 
-          padding-top: 15px; 
-          border-top: 2px solid #ecf0f1; 
-          text-align: center; 
-          color: #7f8c8d; 
-          font-size: 10px; 
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>DOCUMENT MANAGEMENT SYSTEM</h1>
-        <h2>User List Report</h2>
-      </div>
-      
-      <div class="metadata">
-        <p><strong>Report Generated:</strong> ${currentDate}</p>
-        <p><strong>Report Type:</strong> User Management Export</p>
-      </div>
-      
-      <div class="stats">
-        <div class="stat-box">
-          <h3>${users.length}</h3>
-          <p>Total Users</p>
-        </div>
-        <div class="stat-box" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-          <h3>${activeCount}</h3>
-          <p>Active Users</p>
-        </div>
-        <div class="stat-box" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-          <h3>${archivedCount}</h3>
-          <p>Archived Users</p>
-        </div>
-      </div>
-      
-      <div class="section-title">User Details</div>
-      <table>
-        <thead>
-          <tr>
-            <th style="text-align: center; width: 5%;">ID</th>
-            <th style="width: 15%;">Full Name</th>
-            <th style="width: 20%;">Email Address</th>
-            <th style="width: 15%;">Role</th>
-            <th style="width: 15%;">Department</th>
-            <th style="text-align: center; width: 10%;">Status</th>
-            <th style="width: 20%;">Date Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-      
-      <div class="footer">
-        <p>This report was generated automatically by the Document Management System</p>
-        <p>Confidential - For Internal Use Only</p>
-      </div>
-    </body>
-    </html>
-  `;
-  
-  // Open in new window and print to PDF
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(htmlContent);
-  printWindow.document.close();
-  printWindow.onload = function() {
-    printWindow.print();
-    // Note: Browser print dialog will allow user to save as PDF with custom name
-  };
+function escapeXml(text) {
+  if (text === null || text === undefined) return '';
+  return escapeHtml(String(text));
 }
 
-// Export to DOCX
-async function exportToDOCX(users, departments, filename) {
-  const currentDate = new Date().toLocaleString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+function docxParagraphXml(text, options = {}) {
+  const {
+    bold = false,
+    italic = false,
+    size = 22,
+    color = '2C3E50',
+    align = 'left',
+    spacingAfter = 160
+  } = options;
+
+  const runProps = [];
+  if (bold) runProps.push('<w:b/>');
+  if (italic) runProps.push('<w:i/>');
+  if (size) runProps.push(`<w:sz w:val="${Math.round(size * 2)}"/>`);
+  if (color) runProps.push(`<w:color w:val="${color}"/>`);
+  const rPr = runProps.length ? `<w:rPr>${runProps.join('')}</w:rPr>` : '';
+  const run = `<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
+
+  const pProps = [];
+  if (align && align !== 'left') {
+    pProps.push(`<w:jc w:val="${align}"/>`);
+  }
+  if (spacingAfter !== undefined) {
+    pProps.push(`<w:spacing w:after="${spacingAfter}"/>`);
+  }
+  const pPr = pProps.length ? `<w:pPr>${pProps.join('')}</w:pPr>` : '';
+  return `<w:p>${pPr}${run}</w:p>`;
+}
+
+function docxTableCellXml(text, { header = false, zebra = false } = {}) {
+  const shading = header
+    ? `<w:shd w:val="clear" w:color="auto" w:fill="34495E"/>`
+    : zebra
+      ? `<w:shd w:val="clear" w:color="auto" w:fill="F8F9FA"/>`
+      : '';
+  const tcPrParts = [`<w:tcW w:w="1800" w:type="dxa"/>`];
+  if (shading) tcPrParts.push(shading);
+
+  const paragraph = docxParagraphXml(text, {
+    bold: header,
+    color: header ? 'FFFFFF' : '2C3E50',
+    align: header ? 'center' : 'left',
+    spacingAfter: 80,
+    size: 20
   });
-  
-  const activeCount = users.filter(u => u.status === 'active').length;
-  const archivedCount = users.filter(u => u.status === 'archived').length;
-  
-  // Create HTML content that Word can open
-  let tableRows = '';
-  users.forEach((u, index) => {
-    const dept = departments.find(d => d.department_id === u.department_id) || { name: "Not assigned" };
-    const roleLabel = u.role === 'system_admin' ? 'System Administrator' : u.role === 'department_admin' ? 'Department Administrator' : 'Staff';
-    const statusLabel = u.status === 'active' ? 'Active' : 'Archived';
-    
-    tableRows += `
-      <tr>
-        <td style="padding: 8px; border: 1px solid #000; text-align: center;">${u.user_id}</td>
-        <td style="padding: 8px; border: 1px solid #000;">${u.name}</td>
-        <td style="padding: 8px; border: 1px solid #000;">${u.email}</td>
-        <td style="padding: 8px; border: 1px solid #000;">${roleLabel}</td>
-        <td style="padding: 8px; border: 1px solid #000;">${dept.name}</td>
-        <td style="padding: 8px; border: 1px solid #000; text-align: center;">${statusLabel}</td>
-        <td style="padding: 8px; border: 1px solid #000;">${new Date(u.created_at || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-      </tr>
-    `;
-  });
-  
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head>
-      <meta charset="UTF-8">
-      <title>User List Report</title>
-      <style>
-        body { font-family: 'Calibri', 'Arial', sans-serif; margin: 40px; color: #333; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { margin: 0; color: #2c3e50; font-size: 24px; font-weight: 700; }
-        .header h2 { margin: 10px 0 0 0; color: #7f8c8d; font-size: 16px; font-weight: 400; }
-        .metadata { margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #3498db; }
-        .metadata p { margin: 5px 0; font-size: 12px; }
-        .stats { margin: 25px 0; }
-        .stat-row { display: table; width: 100%; margin: 10px 0; }
-        .stat-box { display: table-cell; text-align: center; padding: 15px; background-color: #667eea; color: white; border-radius: 5px; margin: 0 5px; }
-        .stat-box h3 { margin: 0; font-size: 24px; font-weight: 700; }
-        .stat-box p { margin: 5px 0 0 0; font-size: 12px; }
-        .section-title { font-size: 16px; font-weight: 600; color: #2c3e50; margin: 25px 0 10px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background-color: #34495e; color: white; padding: 10px; text-align: left; font-weight: 600; border: 1px solid #000; }
-        td { padding: 8px; border: 1px solid #000; }
-        .footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #ccc; text-align: center; color: #7f8c8d; font-size: 11px; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>DOCUMENT MANAGEMENT SYSTEM</h1>
-        <h2>User List Report</h2>
-      </div>
-      
-      <div class="metadata">
-        <p><strong>Report Generated:</strong> ${currentDate}</p>
-        <p><strong>Report Type:</strong> User Management Export</p>
-      </div>
-      
-      <div class="stats">
-        <div class="stat-row">
-          <div class="stat-box">
-            <h3>${users.length}</h3>
-            <p>Total Users</p>
-          </div>
-          <div class="stat-box" style="background-color: #11998e;">
-            <h3>${activeCount}</h3>
-            <p>Active Users</p>
-          </div>
-          <div class="stat-box" style="background-color: #f5576c;">
-            <h3>${archivedCount}</h3>
-            <p>Archived Users</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="section-title">User Details</div>
-      <table>
-        <thead>
-          <tr>
-            <th style="text-align: center; width: 60px;">ID</th>
-            <th>Full Name</th>
-            <th>Email Address</th>
-            <th>Role</th>
-            <th>Department</th>
-            <th style="text-align: center;">Status</th>
-            <th>Date Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-      
-      <div class="footer">
-        <p>This report was generated automatically by the Document Management System</p>
-        <p>Confidential - For Internal Use Only</p>
-      </div>
-    </body>
-    </html>
+
+  return `<w:tc><w:tcPr>${tcPrParts.join('')}</w:tcPr>${paragraph}</w:tc>`;
+}
+
+function docxTableXml(headers, rows) {
+  const headerRow = `<w:tr>${headers.map(header => docxTableCellXml(header, { header: true })).join('')}</w:tr>`;
+  const bodyRows = rows.map((row, rowIndex) =>
+    `<w:tr>${row.map(cell => docxTableCellXml(cell, { zebra: rowIndex % 2 === 1 })).join('')}</w:tr>`
+  ).join('');
+
+  const gridCols = headers.map(() => '<w:gridCol w:w="1800"/>').join('');
+  return `
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="0" w:type="auto"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="4" w:space="0" w:color="D1D5DB"/>
+          <w:left w:val="single" w:sz="4" w:space="0" w:color="D1D5DB"/>
+          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="D1D5DB"/>
+          <w:right w:val="single" w:sz="4" w:space="0" w:color="D1D5DB"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+        </w:tblBorders>
+        <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+      </w:tblPr>
+      <w:tblGrid>
+        ${gridCols}
+      </w:tblGrid>
+      ${headerRow}
+      ${bodyRows}
+    </w:tbl>
   `;
-  
-  // Create blob and download as DOCX (HTML format that Word can open)
-  const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  const exportFileName = filename || `User_Management_Report_${new Date().toISOString().split('T')[0]}`;
-  a.download = `${exportFileName}.docx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
+}
+
+function buildDocxDocumentXml({ generatedAt, summaryLine, headers, rows }) {
+  const namespaceAttrs = [
+    'xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"',
+    'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"',
+    'xmlns:o="urn:schemas-microsoft-com:office:office"',
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"',
+    'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"',
+    'xmlns:v="urn:schemas-microsoft-com:vml"',
+    'xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"',
+    'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"',
+    'xmlns:w10="urn:schemas-microsoft-com:office:word"',
+    'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"',
+    'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"',
+    'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"',
+    'xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"',
+    'xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"',
+    'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"',
+    'mc:Ignorable="w14 wp14"'
+  ].join(' ');
+
+  const headerParagraphs = [
+    docxParagraphXml(USER_REPORT_BRAND, { bold: true, size: 32, align: 'center', spacingAfter: 120 }),
+    docxParagraphXml(USER_REPORT_TITLE, { bold: true, size: 28, align: 'center', spacingAfter: 160 }),
+    docxParagraphXml(`Generated: ${generatedAt}`, { spacingAfter: 80 }),
+    docxParagraphXml(summaryLine, { bold: true, spacingAfter: 200 })
+  ];
+
+  const tableXml = docxTableXml(headers, rows);
+  const footerParagraph = docxParagraphXml('Confidential - For Internal Use Only', {
+    italic: true,
+    align: 'center',
+    spacingAfter: 0
+  });
+
+  const bodyContent = [
+    ...headerParagraphs,
+    tableXml,
+    footerParagraph,
+    `<w:sectPr>
+      <w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>
+      <w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="720" w:footer="720" w:gutter="0"/>
+      <w:cols w:space="360"/>
+      <w:docGrid w:linePitch="360"/>
+    </w:sectPr>`
+  ].join('');
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document ${namespaceAttrs}>
+  <w:body>
+    ${bodyContent}
+  </w:body>
+</w:document>`;
+}
+
+function getDocxContentTypesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`;
+}
+
+function getDocxPackageRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+}
+
+function getDocxDocumentRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+}
+
+function getDocxStylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w14">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+        <w:sz w:val="22"/>
+        <w:szCs w:val="22"/>
+      </w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:after="160"/>
+      </w:pPr>
+    </w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr><w:spacing w:after="160"/></w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+      <w:sz w:val="22"/>
+      <w:szCs w:val="22"/>
+    </w:rPr>
+  </w:style>
+</w:styles>`;
+}
+
+function getDocxAppXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>DMS Portal</Application>
+  <DocSecurity>0</DocSecurity>
+  <ScaleCrop>false</ScaleCrop>
+  <HeadingPairs>
+    <vt:vector size="2" baseType="variant">
+      <vt:variant><vt:lpstr>Title</vt:lpstr></vt:variant>
+      <vt:variant><vt:i4>1</vt:i4></vt:variant>
+    </vt:vector>
+  </HeadingPairs>
+  <TitlesOfParts>
+    <vt:vector size="1" baseType="lpstr">
+      <vt:lpstr>${escapeXml(USER_REPORT_TITLE)}</vt:lpstr>
+    </vt:vector>
+  </TitlesOfParts>
+  <Company>DMS</Company>
+  <LinksUpToDate>false</LinksUpToDate>
+  <SharedDoc>false</SharedDoc>
+  <HyperlinksChanged>false</HyperlinksChanged>
+  <AppVersion>16.0000</AppVersion>
+</Properties>`;
+}
+
+function getDocxCoreXml(timestamp) {
+  const dateObj = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  const iso = dateObj.toISOString();
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${escapeXml(USER_REPORT_TITLE)}</dc:title>
+  <dc:subject>User Management Export</dc:subject>
+  <dc:creator>DMS Portal</dc:creator>
+  <cp:lastModifiedBy>DMS Portal</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${iso}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${iso}</dcterms:modified>
+</cp:coreProperties>`;
+}
+
+// Export to PDF using jsPDF + autoTable
+async function exportToPDF(users, departments, filename) {
+  const jsPDF = window.jspdf && window.jspdf.jsPDF;
+  if (!jsPDF) {
+    throw new Error('PDF export library failed to load.');
+  }
+
+  const reportRows = buildUserReportRows(users, departments);
+  const stats = getUserReportStats(users);
+  const generatedAt = getReportTimestamp();
+
+  try {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    if (typeof doc.autoTable !== 'function') {
+      throw new Error('PDF table plugin is unavailable.');
+    }
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    doc.setFontSize(18);
+    doc.text(USER_REPORT_BRAND, pageWidth / 2, 45, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text(USER_REPORT_TITLE, pageWidth / 2, 70, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(`Generated: ${generatedAt}`, 40, 95);
+    doc.text(`Total Users: ${stats.total} | Active: ${stats.active} | Archived: ${stats.archived}`, 40, 110);
+
+    doc.autoTable({
+      head: [USER_REPORT_HEADERS],
+      body: reportRows,
+      startY: 130,
+      styles: { fontSize: 9, cellPadding: 5 },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 40 },
+        5: { halign: 'center', cellWidth: 60 }
+      },
+      headStyles: { fillColor: [52, 73, 94] },
+      alternateRowStyles: { fillColor: [248, 249, 250] }
+    });
+
+    doc.setFontSize(9);
+    doc.text('Confidential - For Internal Use Only', pageWidth / 2, pageHeight - 30, { align: 'center' });
+
+    const exportFileName = filename || `User_Management_Report_${new Date().toISOString().split('T')[0]}`;
+    doc.save(`${exportFileName}.pdf`);
+  } catch (error) {
+    console.error('PDF export error:', error);
+    throw error;
+  }
+}
+
+// Export to DOCX using manual OpenXML packaging with JSZip
+async function exportToDOCX(users, departments, filename) {
+  const JSZip = await ensureLibrary('JSZip');
+  if (!JSZip) {
+    throw new Error('DOCX export requires the JSZip library.');
+  }
+
+  const reportRows = buildUserReportRows(users, departments);
+  const stats = getUserReportStats(users);
+  const generatedDate = new Date();
+  const generatedAt = getReportTimestamp(generatedDate);
+  const summaryLine = `Total Users: ${stats.total} | Active: ${stats.active} | Archived: ${stats.archived}`;
+
+  try {
+    const documentXml = buildDocxDocumentXml({
+      generatedAt,
+      summaryLine,
+      headers: USER_REPORT_HEADERS,
+      rows: reportRows
+    });
+
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', getDocxContentTypesXml());
+    zip.folder('_rels').file('.rels', getDocxPackageRelsXml());
+
+    const docPropsFolder = zip.folder('docProps');
+    docPropsFolder.file('core.xml', getDocxCoreXml(generatedDate));
+    docPropsFolder.file('app.xml', getDocxAppXml());
+
+    const wordFolder = zip.folder('word');
+    wordFolder.file('document.xml', documentXml);
+    wordFolder.file('styles.xml', getDocxStylesXml());
+    wordFolder.folder('_rels').file('document.xml.rels', getDocxDocumentRelsXml());
+
+    const blob = await zip.generateAsync({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    });
+
+    const exportFileName = filename || `User_Management_Report_${new Date().toISOString().split('T')[0]}`;
+    triggerReportDownload(blob, `${exportFileName}.docx`);
+  } catch (error) {
+    console.error('DOCX export error:', error);
+    throw error;
+  }
 }
 
 // Archive user function
@@ -8370,3 +8434,4 @@ async function restoreFile(fileId) {
 </script>
   </body>
 </html>
+

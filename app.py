@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import tempfile
+from dotenv import load_dotenv
 from document_classifier import extract_text_from_file, classify_document
 from database.database_config import DatabaseConfig
 import json
@@ -21,6 +22,9 @@ import pandas as pd
 from html import escape
 from cryptography.fernet import Fernet, InvalidToken
 
+# Load environment variables from .env file
+load_dotenv()
+
 
 def _init_fernet():
     """
@@ -30,14 +34,34 @@ def _init_fernet():
     """
     key = os.environ.get("DMS_FERNET_KEY")
     if not key:
+        print("WARNING: DMS_FERNET_KEY not found in environment. Fernet encryption disabled. Using hash-only mode.")
         return None
     try:
-        # Allow raw bytes or base64-encoded string
+        # Fernet keys must be 32 bytes, base64-encoded (44 characters)
+        # If the key is already a base64 string, use it directly
         if isinstance(key, str):
-            key = key.encode("utf-8")
-        return Fernet(key)
+            # Remove any whitespace
+            key = key.strip()
+            # If it's not already bytes, try to decode from base64
+            try:
+                # Fernet expects base64-encoded key (44 chars)
+                if len(key) == 44:
+                    # This is likely a base64-encoded key
+                    key_bytes = key.encode("utf-8")
+                else:
+                    # Try to decode if it's a hex string or other format
+                    key_bytes = key.encode("utf-8")
+            except:
+                key_bytes = key.encode("utf-8")
+        else:
+            key_bytes = key
+        
+        fernet_instance = Fernet(key_bytes)
+        print("SUCCESS: Fernet encryption initialized successfully.")
+        return fernet_instance
     except Exception as e:
         print(f"WARNING: Invalid DMS_FERNET_KEY, falling back to hash-only mode: {e}")
+        print(f"Key format check: length={len(key) if key else 0}, type={type(key)}")
         return None
 
 
@@ -231,23 +255,46 @@ def save_uploaded_file(file, user_id, custom_filename=None, allow_overwrite=Fals
             base_name = target_filename.rsplit('.', 1)[0] if '.' in target_filename else target_filename
             extension = target_filename.rsplit('.', 1)[1].lower() if '.' in target_filename else ''
             
+            # Check if base_name already has a number pattern like "file (1)" or "file (2)"
+            import re
+            number_pattern = r'\s*\(\d+\)\s*$'
+            base_name_clean = re.sub(number_pattern, '', base_name)
+            
             query = "SELECT name FROM files WHERE user_id = %s AND status = 'active' AND name LIKE %s"
             connection = DatabaseConfig.get_connection()
             cursor = connection.cursor(dictionary=True)
-            like_pattern = f"{base_name}%.{extension}" if extension else f"{base_name}%"
+            like_pattern = f"{base_name_clean}%.{extension}" if extension else f"{base_name_clean}%"
             cursor.execute(query, (user_id, like_pattern))
             existing_files = cursor.fetchall()
             cursor.close()
             connection.close()
             
-            counter = 1
-            existing_names = [f['name'] for f in existing_files]
-            while final_filename in existing_names:
+            # Extract existing numbers from filenames
+            existing_numbers = []
+            for f in existing_files:
+                name = f['name']
                 if extension:
-                    final_filename = f"{base_name} ({counter}).{extension}"
+                    name_without_ext = name.rsplit('.', 1)[0]
                 else:
-                    final_filename = f"{base_name} ({counter})"
+                    name_without_ext = name
+                
+                # Check if it matches our pattern
+                match = re.search(r'\(\d+\)$', name_without_ext)
+                if match:
+                    num = int(match.group(0)[1:-1])  # Extract number from "(1)"
+                    existing_numbers.append(num)
+                elif name_without_ext == base_name_clean:
+                    existing_numbers.append(0)  # Original file without number
+            
+            # Find the next available number
+            counter = 1
+            while counter in existing_numbers:
                 counter += 1
+            
+            if extension:
+                final_filename = f"{base_name_clean} ({counter}).{extension}"
+            else:
+                final_filename = f"{base_name_clean} ({counter})"
             
             file_path = os.path.join(folder_path, final_filename)
         
@@ -267,14 +314,39 @@ def save_uploaded_file(file, user_id, custom_filename=None, allow_overwrite=Fals
         return None, None, None, f"File save error: {str(e)}"
 
 def resolve_file_path(file_record):
-    """Return actual file path on disk for a stored file record."""
+    """Return actual file path on disk for a stored file record.
+    
+    The file_path stored in the database may be:
+    - Encrypted with Fernet (if DMS_FERNET_KEY is set)
+    - Hashed with SHA-256 (fallback if no Fernet key)
+    - Plain path (legacy records)
+    
+    This function attempts to decrypt the stored path first, then falls back
+    to searching by filename if decryption fails or the path doesn't exist.
+    """
     if not file_record:
         return None
     
     stored_path = file_record.get('file_path')
-    if stored_path and os.path.exists(stored_path):
+    if not stored_path:
+        # Fallback: search by filename
+        return _resolve_file_path_by_name(file_record)
+    
+    # Try to decrypt if Fernet is available
+    if FERNET is not None:
+        decrypted_path = decrypt_sensitive(stored_path)
+        if decrypted_path and os.path.exists(decrypted_path):
+            return decrypted_path
+    
+    # If stored_path is a plain path (legacy) and exists, use it
+    if os.path.exists(stored_path):
         return stored_path
     
+    # Fallback: search by filename
+    return _resolve_file_path_by_name(file_record)
+
+def _resolve_file_path_by_name(file_record):
+    """Fallback method to find file by searching for its name in upload folder."""
     upload_folder = app.config.get('UPLOAD_FOLDER')
     target_names = [file_record.get('name'), file_record.get('original_name')]
     if not upload_folder or not os.path.exists(upload_folder):
@@ -520,6 +592,8 @@ def upload_file():
 
         print(f"DEBUG: Creating file record with data: {file_data}")
         print(f"DEBUG: Real file path: {file_path} | Hash stored: {file_path_hash}")
+        print(f"DEBUG: Encryption status - is_encrypted: {file_data.get('is_encrypted')}, encryption_version: {file_data.get('encryption_version')}")
+        print(f"DEBUG: Fernet initialized: {FERNET is not None}")
 
         file_id = DMSDatabase.create_file(file_data)
         
@@ -2970,6 +3044,36 @@ def create_category():
 @app.route('/api/categories/<int:category_id>', methods=['PUT'])
 def update_category(category_id):
     data = request.json
+    result = DMSDatabase.update_category(category_id, data.get('name'), data.get('description'))
+    if result:
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'Failed to update category'}), 500
+
+@app.route('/api/categories/<int:category_id>', methods=['DELETE'])
+def delete_category(category_id):
+    try:
+        # Check if category has files
+        files = DMSDatabase.get_all_files()
+        category_files = [f for f in files if f.get('category_id') == category_id and f.get('status') == 'active']
+        
+        if category_files:
+            return jsonify({'success': False, 'error': 'Cannot delete category with active files. Please remove or reassign files first.'}), 400
+        
+        # Delete category
+        query = "DELETE FROM categories WHERE category_id = %s"
+        result = DatabaseConfig.execute_query(query, (category_id,))
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Category deleted successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to delete category'}), 500
+    except Exception as e:
+        print(f"Error deleting category: {e}")
+        return jsonify({'success': False, 'error': f'Failed to delete category: {str(e)}'}), 500
+
+@app.route('/api/categories/<int:category_id>', methods=['PUT'])
+def update_category_old(category_id):
+    data = request.json
     DMSDatabase.update_category(category_id, data['name'], data.get('description'))
     return jsonify({'success': True})
 
@@ -3308,5 +3412,7 @@ def health_check():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+
 
 

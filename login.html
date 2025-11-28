@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+   
     <script>
         tailwind.config = {
             theme: {
@@ -55,7 +55,7 @@
             }
         }
     </script>
-    
+   
     <style>
         .toast-message {
             position: fixed;
@@ -64,9 +64,60 @@
             z-index: 1000;
             max-width: 320px;
         }
+       
+        /* Dark mode styles - matching app.html */
+        body.dark-mode {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+       
+        body.dark-mode .bg-gray-50 {
+            background-color: #1a1a1a;
+        }
+       
+        body.dark-mode .bg-white {
+            background-color: #2d2d2d;
+        }
+       
+        body.dark-mode .text-gray-900 {
+            color: #e0e0e0;
+        }
+       
+        body.dark-mode .text-gray-500 {
+            color: #a0a0a0;
+        }
+       
+        body.dark-mode .border-gray-200 {
+            border-color: #404040;
+        }
+       
+        body.dark-mode .border-gray-300 {
+            border-color: #505050;
+        }
+       
+        body.dark-mode .bg-gray-200 {
+            background-color: #404040;
+        }
+       
+        body.dark-mode .hover\:bg-gray-300:hover {
+            background-color: #505050;
+        }
+       
+        body.dark-mode .text-gray-700 {
+            color: #b0b0b0;
+        }
+       
+        body.dark-mode .hover\:text-gray-700:hover {
+            color: #d0d0d0;
+        }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans h-screen flex items-center justify-center p-6">
+<body class="bg-gray-50 text-gray-900 font-sans h-screen flex items-center justify-center p-6 transition-colors">
+    <!-- Dark Mode Toggle Button -->
+    <button id="themeToggle" onclick="toggleTheme()" class="fixed top-4 right-4 w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors z-50">
+        <i id="themeIcon" class="fa-solid fa-moon text-gray-700"></i>
+    </button>
+   
     <div class="w-full max-w-md">
         <div class="text-center mb-8">
             <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4 shadow-card">
@@ -75,55 +126,62 @@
             <h1 class="text-2xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">DMS PORTAL</h1>
         </div>
 
-        <div class="bg-white p-8 rounded-xl shadow-card border border-gray-200">
+
+        <div class="bg-white p-8 rounded-xl shadow-card border border-gray-200 transition-colors">
             <!-- Login View -->
             <div id="loginView">
                 <h2 class="text-2xl font-semibold mb-2">Welcome Back</h2>
                 <div class="text-sm text-gray-500 mb-6">Sign in to access your Document Management System</div>
-                
+               
                 <div class="mb-4">
                     <label for="loginEmail" class="block text-sm text-gray-500 mb-2">Email</label>
                     <input id="loginEmail" type="email" placeholder="you@example.com" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                 </div>
-                
+               
                 <div class="mb-4">
                     <label for="loginPassword" class="block text-sm text-gray-500 mb-2">Password</label>
-                    <input id="loginPassword" type="password" placeholder="Enter your password" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                    <div class="relative">
+                        <input id="loginPassword" type="password" placeholder="Enter your password" class="w-full px-4 py-3 pr-10 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                        <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility(event)" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none z-10">
+                            <i id="passwordIcon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
-                
+               
                 <div class="flex justify-between items-center mb-6">
                     <div class="flex items-center">
-                        <input type="checkbox" id="remember" class="text-primary-500 focus:ring-primary-500 rounded"/> 
+                        <input type="checkbox" id="remember" class="text-primary-500 focus:ring-primary-500 rounded"/>
                         <label for="remember" class="ml-2 text-sm text-gray-500">Remember me</label>
                     </div>
                     <div>
                         <a class="text-primary-500 hover:text-primary-600 cursor-pointer text-sm font-medium transition-colors" onclick="showForgot()">Forgot password?</a>
                     </div>
                 </div>
-                
+               
                 <button onclick="doLogin()" class="w-full py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
                     <i class="fa-solid fa-right-to-bracket"></i> Sign In
                 </button>
-                
+               
                 <div class="text-xs text-gray-500 mt-4 text-center">
                     Sample credentials: <strong>admin@example.com</strong> / <strong>admin123</strong>
                 </div>
             </div>
 
+
             <!-- Forgot Password View -->
             <div id="forgotView" class="hidden">
                 <h2 class="text-2xl font-semibold mb-2">Reset Password</h2>
                 <div class="text-sm text-gray-500 mb-6">Enter your email to receive a verification code</div>
-                
+               
                 <div class="mb-6">
                     <label for="forgotEmail" class="block text-sm text-gray-500 mb-2">Email Address</label>
                     <input id="forgotEmail" type="email" placeholder="you@example.com" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                 </div>
-                
+               
                 <button id="sendCodeBtn" onclick="sendResetCode()" class="w-full py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
                     <i class="fa-solid fa-paper-plane"></i> Send Verification Code
                 </button>
-                
+               
                 <div class="text-center mt-4">
                     <a class="text-primary-500 hover:text-primary-600 cursor-pointer text-sm font-medium transition-colors flex items-center justify-center gap-1" onclick="showLogin()">
                         <i class="fa-solid fa-arrow-left"></i> Back to Login
@@ -131,11 +189,12 @@
                 </div>
             </div>
 
+
  <!-- Reset Code Verification View -->
 <div id="resetCodeView" class="hidden">
     <h2 class="text-2xl font-semibold mb-2">Enter Verification Code</h2>
     <div class="text-sm text-gray-500 mb-6">We've sent a 6-digit code to your email</div>
-    
+   
     <div class="mb-6">
         <label class="block text-sm text-gray-500 mb-2">Verification Code</label>
         <div class="flex gap-3 mb-4">
@@ -147,11 +206,11 @@
             <input type="text" maxlength="1" id="code6" oninput="moveToNext(6)" class="w-full h-12 text-center text-lg font-semibold rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
         </div>
     </div>
-    
+   
     <button onclick="verifyResetCode()" class="w-full py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
         <i class="fa-solid fa-check"></i> Verify Code
     </button>
-    
+   
     <!-- TIMER SECTION -->
     <div class="text-center mt-4">
         <div id="timer" class="text-sm text-gray-500 hidden">
@@ -160,7 +219,7 @@
         <a id="resendLink" class="text-primary-500 hover:text-primary-600 cursor-pointer text-sm font-medium transition-colors hidden" onclick="sendResetCode()">Resend Code</a>
     </div>
     <!-- END TIMER SECTION -->
-    
+   
     <div class="text-center mt-4">
         <a class="text-primary-500 hover:text-primary-600 cursor-pointer text-sm font-medium transition-colors flex items-center justify-center gap-1" onclick="showLogin()">
             <i class="fa-solid fa-arrow-left"></i> Back to Login
@@ -168,25 +227,26 @@
     </div>
 </div>
 
+
             <!-- New Password View -->
             <div id="newPasswordView" class="hidden">
                 <h2 class="text-2xl font-semibold mb-2">Set New Password</h2>
                 <div class="text-sm text-gray-500 mb-6">Enter your new password</div>
-                
+               
                 <div class="mb-4">
                     <label for="newPassword" class="block text-sm text-gray-500 mb-2">New Password</label>
                     <input id="newPassword" type="password" placeholder="Enter new password" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                 </div>
-                
+               
                 <div class="mb-6">
                     <label for="confirmPassword" class="block text-sm text-gray-500 mb-2">Confirm Password</label>
                     <input id="confirmPassword" type="password" placeholder="Confirm new password" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
                 </div>
-                
+               
                 <button onclick="doResetPassword()" class="w-full py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
                     <i class="fa-solid fa-key"></i> Reset Password
                 </button>
-                
+               
                 <div class="text-center mt-4">
                     <a class="text-primary-500 hover:text-primary-600 cursor-pointer text-sm font-medium transition-colors flex items-center justify-center gap-1" onclick="showLogin()">
                         <i class="fa-solid fa-arrow-left"></i> Back to Login
@@ -194,21 +254,138 @@
                 </div>
             </div>
         </div>
-        
+       
         <div class="text-center mt-6 text-sm text-gray-500">
             © DMS Portal. All rights reserved.
         </div>
     </div>
 
+
     <script>
     const API_BASE_URL = "http://localhost:5000/api";
 
+
+    // Dark Mode Toggle - matching app.html implementation
+    function initTheme() {
+        const savedTheme = localStorage.getItem("dms-theme") || "light";
+        const themeToggle = document.getElementById("themeToggle");
+        const icon = themeToggle ? themeToggle.querySelector("i") : null;
+       
+        if (savedTheme === "dark") {
+            document.body.classList.add("dark-mode");
+            if (icon) {
+                icon.classList.remove("fa-moon");
+                icon.classList.add("fa-sun");
+            }
+        } else {
+            document.body.classList.remove("dark-mode");
+            if (icon) {
+                icon.classList.remove("fa-sun");
+                icon.classList.add("fa-moon");
+            }
+        }
+    }
+
+
+    function toggleTheme() {
+        const themeToggle = document.getElementById("themeToggle");
+        const icon = themeToggle ? themeToggle.querySelector("i") : null;
+       
+        document.body.classList.toggle("dark-mode");
+        if (document.body.classList.contains("dark-mode")) {
+            localStorage.setItem("dms-theme", "dark");
+            if (icon) {
+                icon.classList.remove("fa-moon");
+                icon.classList.add("fa-sun");
+            }
+        } else {
+            localStorage.setItem("dms-theme", "light");
+            if (icon) {
+                icon.classList.remove("fa-sun");
+                icon.classList.add("fa-moon");
+            }
+        }
+    }
+
+
+    // Password Visibility Toggle
+    function togglePasswordVisibility(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+       
+        const passwordInput = document.getElementById("loginPassword");
+        const passwordIcon = document.getElementById("passwordIcon");
+        const toggleBtn = document.getElementById("togglePasswordBtn");
+       
+        // Ensure only one icon exists
+        if (toggleBtn) {
+            const existingIcons = toggleBtn.querySelectorAll("i");
+            if (existingIcons.length > 1) {
+                // Remove duplicates, keep only the first one
+                for (let i = 1; i < existingIcons.length; i++) {
+                    existingIcons[i].remove();
+                }
+            }
+        }
+       
+        if (passwordInput && passwordIcon) {
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                passwordIcon.className = "fa-solid fa-eye-slash";
+            } else {
+                passwordInput.type = "password";
+                passwordIcon.className = "fa-solid fa-eye";
+            }
+        }
+    }
+   
+    // Ensure password icon is not duplicated - run immediately and on load
+    function ensureSinglePasswordIcon() {
+        const toggleBtn = document.getElementById("togglePasswordBtn");
+        if (toggleBtn) {
+            const icons = toggleBtn.querySelectorAll("i");
+            if (icons.length > 1) {
+                // Keep only the first icon, remove all duplicates
+                for (let i = 1; i < icons.length; i++) {
+                    icons[i].remove();
+                }
+            }
+            // Ensure button has exactly one icon
+            if (icons.length === 0) {
+                toggleBtn.innerHTML = '<i id="passwordIcon" class="fa-solid fa-eye"></i>';
+            }
+        }
+    }
+   
+    // Run immediately
+    ensureSinglePasswordIcon();
+   
+    // Also run on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', ensureSinglePasswordIcon);
+   
+    // Run on any input/focus events to catch duplicates
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordInput = document.getElementById("loginPassword");
+        if (passwordInput) {
+            passwordInput.addEventListener('focus', ensureSinglePasswordIcon);
+            passwordInput.addEventListener('input', ensureSinglePasswordIcon);
+            passwordInput.addEventListener('click', ensureSinglePasswordIcon);
+        }
+    });
+
+
+    // Initialize theme on load
+    initTheme();
+
+
     // Utility functions
-    function showToast(msg, type = 'info'){ 
+    function showToast(msg, type = 'info'){
         const toast = document.createElement('div');
         let bgColor = 'bg-primary-500';
         let icon = 'fa-circle-info';
-        
+       
         if (type === 'success') {
             bgColor = 'bg-success-500';
             icon = 'fa-circle-check';
@@ -216,12 +393,13 @@
             bgColor = 'bg-danger-500';
             icon = 'fa-circle-exclamation';
         }
-        
+       
         toast.className = `toast-message ${bgColor} text-white p-3 rounded-lg shadow-lg flex items-center gap-2`;
         toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${msg}</span>`;
         document.body.appendChild(toast);
         setTimeout(() => { document.body.removeChild(toast); }, 3000);
     }
+
 
     async function apiCall(endpoint, options = {}) {
         try {
@@ -233,16 +411,18 @@
                 ...options
             };
 
+
             if (config.body && typeof config.body === 'object') {
                 config.body = JSON.stringify(config.body);
             }
 
+
             const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-            
+           
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+           
             return await response.json();
         } catch (error) {
             console.error('API call failed:', error);
@@ -251,15 +431,18 @@
         }
     }
 
+
     async function doLogin(){
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
         const remember = document.getElementById('remember').checked;
 
+
         if (!email || !password) {
             showToast('Please fill all fields', 'error');
             return;
         }
+
 
         // Get all users and find matching credentials
         const users = await apiCall('/users');
@@ -268,9 +451,15 @@
             return;
         }
 
+
         const user = users.find(u => u.email === email && u.password === password);
-        
+       
         if (user) {
+            // Check if user is archived
+            if (user.status === 'archived') {
+                showToast('Your account has been archived. Please contact your administrator.', 'error');
+                return;
+            }
             // Create session in database
             const sessionResult = await apiCall('/sessions', {
                 method: 'POST',
@@ -280,13 +469,14 @@
                 }
             });
 
+
             // Store session in localStorage
             localStorage.setItem("dms_session_v1", JSON.stringify({
                 userId: user.user_id,
                 email: user.email,
                 timestamp: Date.now()
             }));
-            
+           
             // Log login activity
             await apiCall('/activities', {
                 method: 'POST',
@@ -295,7 +485,7 @@
                     activity: `User logged in`
                 }
             });
-            
+           
             showToast(`Welcome back, ${user.name}!`, 'success');
             setTimeout(() => {
                 window.location.href = 'app.html';
@@ -305,10 +495,12 @@
         }
     }
 
+
     function showForgot(){
         document.getElementById('loginView').classList.add('hidden');
         document.getElementById('forgotView').classList.remove('hidden');
     }
+
 
     function showLogin(){
         document.getElementById('loginView').classList.remove('hidden');
@@ -317,25 +509,27 @@
         document.getElementById('newPasswordView').classList.add('hidden');
     }
 
+
 let countdownTimer;
 let countdownTime = 60;
+
 
 function startTimer() {
     const timerElement = document.getElementById('timer');
     const resendLink = document.getElementById('resendLink');
     const countdownElement = document.getElementById('countdown');
-    
+   
     timerElement.classList.remove('hidden');
     resendLink.classList.add('hidden');
     countdownTime = 60;
     countdownElement.textContent = countdownTime;
-    
+   
     clearInterval(countdownTimer);
-    
+   
     countdownTimer = setInterval(() => {
         countdownTime--;
         countdownElement.textContent = countdownTime;
-        
+       
         if (countdownTime <= 0) {
             clearInterval(countdownTimer);
             timerElement.classList.add('hidden');
@@ -344,12 +538,14 @@ function startTimer() {
     }, 1000);
 }
 
+
     async function sendResetCode(){
     const email = document.getElementById('forgotEmail').value.trim();
     if (!email) {
         showToast('Please enter your email', 'error');
         return;
     }
+
 
     // Check if user exists
     const users = await apiCall('/users');
@@ -358,16 +554,18 @@ function startTimer() {
         return;
     }
 
+
     const user = users.find(u => u.email === email);
-    
+   
     if (!user) {
         showToast('No account found with that email', 'error');
         return;
     }
 
+
     // Generate a 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    
+   
     // Send email via PHP
     const emailResult = await apiCall('/send-reset-email', {
         method: 'POST',
@@ -377,12 +575,14 @@ function startTimer() {
         }
     });
 
+
     if (emailResult && emailResult.success) {
         showToast('Verification code sent to your email', 'success');
     } else {
         // Fallback to showing code if email fails
         showToast(`Email failed. Demo code: ${code}`, 'error');
     }
+
 
     // Store reset code in database
     await apiCall('/reset-codes', {
@@ -393,11 +593,12 @@ function startTimer() {
         }
     });
 
+
     // Show verification view and start timer
     document.getElementById('forgotView').classList.add('hidden');
     document.getElementById('resetCodeView').classList.remove('hidden');
     startTimer();
-    
+   
     // Clear input fields
     document.getElementById('code1').value = '';
     document.getElementById('code2').value = '';
@@ -408,6 +609,7 @@ function startTimer() {
     document.getElementById('code1').focus();
 }
 
+
     function moveToNext(index){
         const current = document.getElementById(`code${index}`);
         if (current.value.length === 1) {
@@ -417,6 +619,7 @@ function startTimer() {
         }
     }
 
+
     async function verifyResetCode(){
         const code1 = document.getElementById('code1').value;
         const code2 = document.getElementById('code2').value;
@@ -424,51 +627,53 @@ function startTimer() {
         const code4 = document.getElementById('code4').value;
         const code5 = document.getElementById('code5').value;
         const code6 = document.getElementById('code6').value;
-        
+       
         const enteredCode = code1 + code2 + code3 + code4 + code5 + code6;
-        
+       
         if (enteredCode.length !== 6) {
             showToast('Please enter the complete 6-digit code', 'error');
             return;
         }
            
-      
+     
         document.getElementById('resetCodeView').classList.add('hidden');
         document.getElementById('newPasswordView').classList.remove('hidden');
     }
 
+
 async function doResetPassword(){
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
-    
+   
     if (!newPassword || !confirmPassword) {
         showToast('Please fill all fields', 'error');
         return;
     }
-    
+   
     if (newPassword !== confirmPassword) {
         showToast('Passwords do not match', 'error');
         return;
     }
-    
+   
     if (newPassword.length < 6) {
         showToast('Password must be at least 6 characters', 'error');
         return;
     }
-    
+   
     const email = document.getElementById('forgotEmail').value.trim();
     const users = await apiCall('/users');
-    
+   
     if (!users) {
         showToast('Cannot connect to server', 'error');
         return;
     }
 
+
     const user = users.find(u => u.email === email);
-    
+   
     if (user) {
         console.log("DEBUG: Updating password for user:", user.user_id);
-        
+       
         // Update user password in database - USE THE CORRECT ENDPOINT
         const updateResult = await apiCall(`/users/${user.user_id}`, {
             method: 'PUT',
@@ -483,7 +688,9 @@ async function doResetPassword(){
             }
         });
 
+
         console.log("DEBUG: Update result:", updateResult);
+
 
         if (updateResult && updateResult.success) {
             showToast('Password reset successfully', 'success');
@@ -497,6 +704,7 @@ async function doResetPassword(){
         showToast('User not found', 'error');
     }
 }
+
 
     // Allow login on Enter key press - THIS WAS MISSING AND NOW ADDED BACK
     document.addEventListener('keydown', function(event) {
@@ -515,3 +723,4 @@ async function doResetPassword(){
 </script>
 </body>
 </html>
+

@@ -329,6 +329,115 @@
         }
       }
 
+      /* Enhanced File Input Styling */
+      .file-input-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+        margin-bottom: 8px;
+      }
+
+      .file-input-wrapper input[type="file"] {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        z-index: 2;
+      }
+
+      .file-input-custom {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 16px 20px;
+        background: var(--accent-light);
+        border: 2px dashed var(--accent);
+        border-radius: 12px;
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 14px;
+        transition: var(--transition);
+        cursor: pointer;
+        text-align: center;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .file-input-custom:hover {
+        background: var(--accent);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      }
+
+      .file-input-custom:active {
+        transform: translateY(0);
+      }
+
+      .file-input-custom i {
+        font-size: 18px;
+      }
+
+      .file-input-info {
+        font-size: 13px;
+        color: var(--text-muted);
+        text-align: center;
+        margin-top: 8px;
+        line-height: 1.4;
+      }
+
+      .file-input-selected {
+        margin-top: 12px;
+        padding: 12px;
+        background: var(--bg);
+        border-radius: 8px;
+        border-left: 4px solid var(--success);
+      }
+
+      .file-input-selected-title {
+        font-weight: 600;
+        color: var(--success);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+      }
+
+      .file-input-selected-list {
+        font-size: 13px;
+        color: var(--text-muted);
+        max-height: 120px;
+        overflow-y: auto;
+      }
+
+      .file-input-selected-list div {
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .file-input-selected-list div:last-child {
+        border-bottom: none;
+      }
+
+      /* Dark mode adjustments */
+      .dark-mode .file-input-custom {
+        background: var(--accent-light);
+        border-color: var(--accent);
+      }
+
+      .dark-mode .file-input-custom:hover {
+        background: var(--accent);
+      }
+
+      .dark-mode .file-input-selected {
+        background: var(--card);
+      }
+
       /* Search highlight styles */
       .search-highlight {
         background: linear-gradient(
@@ -3298,6 +3407,7 @@
         const categories = await getAllCategories();
         const departments = await getAllDepartments();
         const currentUser = await getCurrentUser();
+        const settings = await getSettings();
 
         // Filter workspaces where current user is a member
         const userWorkspaces = workspaces.filter((w) => {
@@ -3346,52 +3456,75 @@
           .join("");
 
         openModal(`<h3>Upload Files</h3>
-      <div style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Enhanced File Input Section -->
         <div class="form-row">
-          <label>Select Files</label>
-          <input type="file" id="fileInputModal" multiple style="padding:8px" />
+            <label>Select Files</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInputModal" multiple />
+                <div class="file-input-custom" id="fileInputCustom">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>Choose Files or Drag & Drop</span>
+                </div>
+            </div>
+            <div class="file-input-info">
+                Maximum file size: ${
+                  settings?.max_file_mb || 50
+                }MB • Supported: ${settings?.allowed_types || "All file types"}
+            </div>
+            <div id="fileInputSelected" style="display: none;">
+                <div class="file-input-selected">
+                    <div class="file-input-selected-title">
+                        <i class="fa-solid fa-check-circle"></i>
+                        Selected Files
+                    </div>
+                    <div class="file-input-selected-list" id="selectedFilesList"></div>
+                </div>
+            </div>
         </div>
         
         <div class="form-row">
-          <label style="font-weight:600;color:var(--text);margin-bottom:8px;">Add to Workspace(s) (Optional)</label>
-          <div id="uploadWorkspaceCheckboxes" style="max-height:200px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:8px;">
-            ${
-              userWorkspaces.length > 0
-                ? workspaceCheckboxes
-                : '<div class="small-muted" style="text-align:center;padding:20px;">You are not a member of any workspaces</div>'
-            }
-          </div>
-          <div class="small-muted" style="margin-top:8px;display:flex;align-items:center;gap:6px;">
-            <i class="fa-solid fa-circle-info" style="color:var(--accent);"></i> 
-            Files will be uploaded once to each selected workspace. No duplicates in My Library.
-          </div>
+            <label style="font-weight:600;color:var(--text);margin-bottom:8px;">Add to Workspace(s) (Optional)</label>
+            <div id="uploadWorkspaceCheckboxes" style="max-height:200px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:8px;">
+                ${
+                  userWorkspaces.length > 0
+                    ? workspaceCheckboxes
+                    : '<div class="small-muted" style="text-align:center;padding:20px;">You are not a member of any workspaces</div>'
+                }
+            </div>
+            <div class="small-muted" style="margin-top:8px;display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-circle-info" style="color:var(--accent);"></i> 
+                Files will be uploaded once to each selected workspace. No duplicates in My Library.
+            </div>
         </div>
         
         <div id="uploadSelectedWorkspaces" style="display:none;background:var(--accent-light);padding:12px;border-radius:8px;border-left:4px solid var(--accent);">
-          <div style="font-weight:600;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-            <i class="fa-solid fa-check-circle"></i>
-            Selected Workspaces:
-          </div>
-          <div id="uploadSelectedWorkspacesList" class="small-muted" style="color:var(--accent-dark);"></div>
+            <div style="font-weight:600;color:var(--accent);margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-check-circle"></i>
+                Selected Workspaces:
+            </div>
+            <div id="uploadSelectedWorkspacesList" class="small-muted" style="color:var(--accent-dark);"></div>
         </div>
         
         <div class="form-row">
-          <label>Send to Department (Optional)</label>
-          <select id="uploadDepartment" onchange="updateEmailCheckbox()">
-            <option value="" selected>Select Department</option>
-            ${departmentOptions}
-          </select>
-          <div style="margin-top:8px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            </label>
-          </div>
+            <label>Send to Department (Optional)</label>
+            <select id="uploadDepartment" onchange="updateEmailCheckbox()">
+                <option value="" selected>Select Department</option>
+                ${departmentOptions}
+            </select>
+            <div style="margin-top:8px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="uploadSendEmail" disabled style="margin:0;width:16px;height:16px;">
+                    <span id="emailCheckboxLabel" class="small-muted">Select a department to enable email notification</span>
+                </label>
+            </div>
         </div>
         
         <div style="display:flex;gap:12px;justify-content:flex-end">
-          <button class="btn-secondary" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
-          <button onclick="handleFilesFromModal()"><i class="fa-solid fa-upload"></i> Upload Files</button>
+            <button class="btn-secondary" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
+            <button onclick="handleFilesFromModal()"><i class="fa-solid fa-upload"></i> Upload Files</button>
         </div>
-      </div>`);
+    </div>`);
 
         // Update email checkbox label based on selected department
         window.updateEmailCheckbox = function () {
@@ -3443,7 +3576,139 @@
                 updateUploadSelectedWorkspaces
               );
             });
+
+          // Setup enhanced file input
+          setupFileInput();
         }, 100);
+      }
+
+      // Enhanced File Input Functionality
+      function setupFileInput() {
+        const fileInput = document.getElementById("fileInputModal");
+        const fileInputCustom = document.getElementById("fileInputCustom");
+        const fileInputSelected = document.getElementById("fileInputSelected");
+        const selectedFilesList = document.getElementById("selectedFilesList");
+
+        if (!fileInput) return;
+
+        // Update custom button text when files are selected
+        fileInput.addEventListener("change", function (e) {
+          const files = Array.from(e.target.files);
+
+          if (files.length > 0) {
+            // Update custom button
+            const fileText =
+              files.length === 1
+                ? `1 file selected`
+                : `${files.length} files selected`;
+
+            fileInputCustom.innerHTML = `
+                <i class="fa-solid fa-check-circle"></i>
+                <span>${fileText}</span>
+            `;
+            fileInputCustom.style.background = "var(--success)";
+            fileInputCustom.style.borderColor = "var(--success)";
+            fileInputCustom.style.color = "white";
+            fileInputCustom.style.borderStyle = "solid";
+
+            // Show selected files list
+            selectedFilesList.innerHTML = files
+              .slice(0, 10) // Show first 10 files
+              .map(
+                (file) => `
+                    <div title="${file.name}">
+                        <i class="fa-solid fa-file"></i> ${
+                          file.name
+                        } (${formatFileSize(file.size)})
+                    </div>
+                `
+              )
+              .join("");
+
+            if (files.length > 10) {
+              selectedFilesList.innerHTML += `<div style="color: var(--text-muted); font-style: italic;">... and ${
+                files.length - 10
+              } more files</div>`;
+            }
+
+            fileInputSelected.style.display = "block";
+          } else {
+            // Reset to default state
+            resetFileInput();
+          }
+        });
+
+        // Add drag and drop functionality
+        const wrapper = fileInput.closest(".file-input-wrapper");
+
+        ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+          wrapper.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
+        ["dragenter", "dragover"].forEach((eventName) => {
+          wrapper.addEventListener(eventName, highlight, false);
+        });
+
+        ["dragleave", "drop"].forEach((eventName) => {
+          wrapper.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+          fileInputCustom.style.background = "var(--accent)";
+          fileInputCustom.style.color = "white";
+          fileInputCustom.style.borderStyle = "solid";
+          fileInputCustom.style.transform = "translateY(-2px)";
+          fileInputCustom.style.boxShadow =
+            "0 4px 12px rgba(59, 130, 246, 0.3)";
+        }
+
+        function unhighlight() {
+          if (!fileInput.files || fileInput.files.length === 0) {
+            resetFileInput();
+          }
+        }
+
+        function resetFileInput() {
+          fileInputCustom.innerHTML = `
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Choose Files or Drag & Drop</span>
+        `;
+          fileInputCustom.style.background = "";
+          fileInputCustom.style.borderColor = "";
+          fileInputCustom.style.color = "";
+          fileInputCustom.style.borderStyle = "dashed";
+          fileInputCustom.style.transform = "";
+          fileInputCustom.style.boxShadow = "";
+          fileInputSelected.style.display = "none";
+        }
+
+        wrapper.addEventListener("drop", handleDrop, false);
+
+        function handleDrop(e) {
+          const dt = e.dataTransfer;
+          const files = dt.files;
+          fileInput.files = files;
+
+          // Trigger change event
+          const event = new Event("change", { bubbles: true });
+          fileInput.dispatchEvent(event);
+        }
+      }
+
+      // Helper function to format file size
+      function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
       }
 
       // Function to update selected workspaces in upload modal
@@ -3475,158 +3740,6 @@
         } else {
           summaryContainer.style.display = "none";
         }
-      }
-
-      // Check for duplicate files
-      async function checkDuplicateFile(fileName, userId) {
-        try {
-          const allFiles = await getAllFiles();
-          const duplicate = allFiles.find(
-            (f) =>
-              f.name === fileName &&
-              f.user_id === userId &&
-              f.status === "active"
-          );
-          return duplicate !== undefined;
-        } catch (error) {
-          console.error("Error checking duplicate:", error);
-          return false;
-        }
-      }
-
-      // Replace the handleFilesFromModal function
-      async function handleFilesFromModal() {
-        const fileInput = document.getElementById("fileInputModal");
-        const categorySelect = document.getElementById("uploadCategory");
-        const departmentSelect = document.getElementById("uploadDepartment");
-        const sendEmailCheckbox = document.getElementById("uploadSendEmail");
-
-        const files = Array.from(fileInput.files || []);
-        const selectedWorkspaceCheckboxes = document.querySelectorAll(
-          '#uploadWorkspaceCheckboxes input[type="checkbox"]:checked'
-        );
-        const selectedWorkspaceIds = Array.from(
-          selectedWorkspaceCheckboxes
-        ).map((checkbox) => parseInt(checkbox.value));
-        const categoryId = null;
-        const departmentId =
-          departmentSelect &&
-          departmentSelect.value &&
-          departmentSelect.value.trim() !== ""
-            ? departmentSelect.value
-            : null;
-        const sendEmail = sendEmailCheckbox && sendEmailCheckbox.checked;
-
-        if (!files.length) {
-          showToast("Please select at least one file", "error");
-          return;
-        }
-
-        const settings = await getSettings();
-        const maxMB = settings?.max_file_mb || 50;
-        const allowed = (settings?.allowed_types || "")
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean);
-
-        const currentUser = await getCurrentUser();
-        if (!currentUser) {
-          showToast("User not found", "error");
-          return;
-        }
-
-        // Check for duplicates and show alert
-        const duplicateFiles = [];
-        for (const file of files) {
-          const isDuplicate = await checkDuplicateFile(
-            file.name,
-            currentUser.user_id
-          );
-          if (isDuplicate) {
-            duplicateFiles.push(file.name);
-          }
-        }
-
-        if (duplicateFiles.length > 0) {
-          const duplicateList = duplicateFiles.join(", ");
-          const proceed = confirm(
-            `Warning: The following file(s) already exist in the system:\n\n${duplicateList}\n\nWould you like to continue with the upload?`
-          );
-          if (!proceed) {
-            return;
-          }
-        }
-
-        let processed = 0;
-        let errors = 0;
-
-        for (const file of files) {
-          const ext = (file.name.split(".").pop() || "").toLowerCase();
-
-          if (allowed.length && !allowed.includes(ext)) {
-            showToast(
-              `File "${file.name}" not allowed by system settings`,
-              "error"
-            );
-            errors++;
-            continue;
-          }
-
-          if (file.size > maxMB * 1024 * 1024) {
-            showToast(`"${file.name}" exceeds max size ${maxMB}MB`, "error");
-            errors++;
-            continue;
-          }
-
-          try {
-            // Upload file once with ALL selected workspaces
-            await uploadSingleFile(
-              file,
-              currentUser.user_id,
-              selectedWorkspaceIds,
-              categoryId,
-              departmentId,
-              sendEmail
-            );
-            processed++;
-
-            if (selectedWorkspaceIds.length > 0) {
-              showToast(
-                `Uploaded: ${file.name} to ${selectedWorkspaceIds.length} workspace(s)`,
-                "success"
-              );
-            } else {
-              showToast(`Uploaded: ${file.name}`, "success");
-            }
-          } catch (err) {
-            console.error("Error uploading file:", file.name, err);
-            showToast(`Failed to upload: ${file.name}`, "error");
-            errors++;
-          }
-        }
-
-        if (processed > 0) {
-          const workspaceText =
-            selectedWorkspaceIds.length > 0
-              ? ` to ${selectedWorkspaceIds.length} workspace(s)`
-              : "";
-          showToast(
-            `Successfully uploaded ${processed} files${workspaceText}`,
-            "success"
-          );
-          await logActivity({
-            user_id: currentUser.user_id,
-            activity: `Uploaded ${processed} files${workspaceText}`,
-          });
-        }
-        if (errors > 0) {
-          showToast(`${errors} files failed to upload`, "error");
-        }
-
-        closeModal();
-
-        // Refresh the appropriate view (refreshAllViews already calls refreshStats)
-        await refreshAllViews();
       }
 
       // Make sure uploadSingleFile is using the new parameter order

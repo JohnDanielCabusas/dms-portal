@@ -1786,6 +1786,33 @@
       .current-password-field {
         margin-bottom: 8px;
       }
+      /* Add to your existing CSS */
+      .tab-button {
+        padding: 8px 16px;
+        border: none;
+        background: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+      }
+
+      .tab-button:hover {
+        color: var(--text);
+      }
+
+      .tab-button.active {
+        color: var(--text);
+        border-bottom: 2px solid var(--accent);
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
     </style>
 
     <!-- Report export libraries -->
@@ -3262,7 +3289,7 @@
         if (currentView === "dashboard") await renderDashboard();
         if (currentView === "library") await renderFiles();
         if (currentView === "workspaces") await renderWorkspaces();
-        if (currentView === "workspace-detail") await renderWorkspaceDetail();
+        //if (currentView === "workspace-detail") await renderWorkspaceDetail();
         if (currentView === "userMgmt") await renderUsers();
         if (currentView === "departments") await renderDepartments();
         if (currentView === "categories") await renderCategories();
@@ -6685,7 +6712,7 @@
           card.className = "workspace-card";
           card.setAttribute("data-workspace-id", w.workspace_id);
           card.style.marginBottom = "16px";
-          card.onclick = () => openWorkspace(w.workspace_id);
+          card.onclick = () => openWorkspaceModal(w.workspace_id); // Changed to open modal
 
           // Check if current user is Staff to hide edit/delete buttons
           const isStaff = currentUser?.role === "staff";
@@ -6758,10 +6785,215 @@
 
         console.log("✅ DEBUG: Finished renderWorkspaces");
       }
+
+      // New function to open workspace modal
+      async function openWorkspaceModal(workspaceId) {
+        const workspaces = await getAllWorkspaces();
+        const users = await getAllUsers();
+        const currentUser = currentUserData || (await getCurrentUser());
+
+        const workspace = workspaces.find((w) => w.workspace_id == workspaceId);
+        if (!workspace) {
+          showToast("Workspace not found", "error");
+          return;
+        }
+
+        // Get workspace files
+        const workspaceFiles = await getWorkspaceFiles(workspaceId);
+
+        // Get member details
+        const memberDetails = await Promise.all(
+          (workspace.members || []).map(async (memberId) => {
+            const user = users.find((u) => u.user_id == memberId);
+            if (!user) return null;
+            return {
+              id: user.user_id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              initials: user.name
+                .split(" ")
+                .map((s) => s[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase(),
+            };
+          })
+        ).then((results) => results.filter(Boolean));
+
+        // Check if current user is Staff to hide edit/delete buttons
+        const isStaff = currentUser?.role === "staff";
+
+        // Build files HTML
+        let filesHTML = "";
+        if (workspaceFiles.length > 0) {
+          filesHTML = workspaceFiles
+            .map(
+              (file) => `
+      <div class="doc-adaptive" style="margin-bottom: 8px;" onclick="openFilePreview(${
+        file.file_id
+      }); closeModal();">
+        <div class="doc-header">
+          <div class="doc-icon">${fileIcon(file.name)}</div>
+          <div class="doc-info">
+            <div class="doc-name">${file.name}</div>
+            <div class="doc-meta">
+              ${file.type.toUpperCase()} • 
+              ${(file.size / 1024) | 0} KB • 
+              ${new Date(file.created_at).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+        <div class="doc-actions">
+          <button class="icon-btn" onclick="event.stopPropagation(); downloadFile(${
+            file.file_id
+          })">
+            <i class="fa-solid fa-download"></i>
+          </button>
+          <button class="icon-btn" title="Preview" onclick="event.stopPropagation(); openFilePreview(${
+            file.file_id
+          }); closeModal();">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+    `
+            )
+            .join("");
+        } else {
+          filesHTML =
+            '<div class="small-muted" style="text-align:center;padding:20px;">No files in this workspace</div>';
+        }
+
+        // Build members HTML
+        let membersHTML = "";
+        if (memberDetails.length > 0) {
+          membersHTML = memberDetails
+            .map(
+              (member) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px;border-radius:8px;background:var(--bg);margin-bottom:8px;">
+        <div class="member-avatar" style="width:32px;height:32px;font-size:12px">${
+          member.initials
+        }</div>
+        <div style="flex:1">
+          <div style="font-weight:600;color:var(--text)">${member.name}</div>
+          <div class="small-muted">${member.email} • ${
+                member.role === "system_admin"
+                  ? "System Admin"
+                  : member.role === "department_admin"
+                  ? "Department Admin"
+                  : "Staff"
+              }</div>
+        </div>
+      </div>
+    `
+            )
+            .join("");
+        } else {
+          membersHTML =
+            '<div class="small-muted" style="text-align:center;padding:20px;">No members in this workspace</div>';
+        }
+
+        const modalContent = `
+    <div style="display:flex;flex-direction:column;gap:24px;max-height:80vh;overflow-y:auto;">
+      <!-- Workspace Header -->
+      <div style="display:flex;gap:20px;align-items:flex-start;border-bottom:1px solid var(--border);padding-bottom:20px;">
+        <div class="workspace-icon" style="width:60px;height:60px;font-size:24px;">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+        <div style="flex:1">
+          <h2 style="margin:0 0 8px 0;color:var(--text)">${workspace.name}</h2>
+          <div class="small-muted" style="margin-bottom:12px">${
+            workspace.description || "No description provided"
+          }</div>
+          <div class="workspace-meta">
+            <div class="meta-item"><i class="fa-solid fa-file"></i> ${
+              workspaceFiles.length
+            } files</div>
+            <div class="meta-item"><i class="fa-solid fa-user"></i> ${
+              memberDetails.length
+            } members</div>
+            <div class="meta-item"><i class="fa-solid fa-calendar"></i> ${new Date(
+              workspace.created_at
+            ).toLocaleDateString()}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          ${
+            !isStaff
+              ? `
+            <button class="icon-btn" onclick="openEditWorkspace(${workspace.workspace_id}); closeModal();" title="Edit Workspace">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="icon-btn btn-danger" onclick="deleteWorkspace(${workspace.workspace_id}); closeModal();" title="Delete Workspace">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          `
+              : ""
+          }
+          <button class="icon-btn" onclick="closeModal()" title="Close">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabs for Files and Members -->
+      <div>
+        <div style="display:flex;gap:16px;margin-bottom:16px;border-bottom:1px solid var(--border);">
+          <button class="tab-button active" onclick="switchWorkspaceTab(this, 'files')" style="padding:8px 16px;border:none;background:none;color:var(--text);border-bottom:2px solid var(--accent);cursor:pointer;">
+            <i class="fa-solid fa-file"></i> Files (${workspaceFiles.length})
+          </button>
+          <button class="tab-button" onclick="switchWorkspaceTab(this, 'members')" style="padding:8px 16px;border:none;background:none;color:var(--text-muted);cursor:pointer;">
+            <i class="fa-solid fa-users"></i> Members (${memberDetails.length})
+          </button>
+        </div>
+
+        <!-- Files Tab Content -->
+        <div id="workspaceFilesTab" class="tab-content" style="display:block;">
+          <div style="margin-bottom:16px;">
+            <button onclick="openAddFileModal(); closeModal();">
+              <i class="fa-solid fa-plus"></i> Add Files
+            </button>
+          </div>
+          <div style="max-height:400px;overflow-y:auto;">
+            ${filesHTML}
+          </div>
+        </div>
+
+        <!-- Members Tab Content -->
+        <div id="workspaceMembersTab" class="tab-content" style="display:none;">
+          <div style="max-height:400px;overflow-y:auto;">
+            ${membersHTML}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+        openModal(modalContent, "modal-large");
+      }
+
       async function openWorkspace(id) {
-        currentWorkspaceId = id;
-        currentView = "workspace-detail";
-        renderCurrentView();
+        // Open workspace modal instead of navigating to detail view
+        await openWorkspaceModal(id);
+      }
+
+      // Helper function for workspace modal tabs
+      function switchWorkspaceTab(button, tabName) {
+        // Update active tab button
+        document.querySelectorAll(".tab-button").forEach((btn) => {
+          btn.style.color = "var(--text-muted)";
+          btn.style.borderBottom = "2px solid transparent";
+        });
+        button.style.color = "var(--text)";
+        button.style.borderBottom = "2px solid var(--accent)";
+
+        // Show active tab content
+        document.querySelectorAll(".tab-content").forEach((content) => {
+          content.style.display = "none";
+        });
+        document.getElementById(
+          `workspace${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Tab`
+        ).style.display = "block";
       }
 
       async function renderWorkspaceDetail() {

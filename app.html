@@ -3174,28 +3174,14 @@ async function openAddFileModal() {
         <div class="form-row">
           <label>Send to Department (Optional)</label>
           <select id="uploadDepartment" onchange="updateEmailCheckbox()">
-            <option value="">Select Department (Optional)</option>
+            <option value="" selected>Select Department</option>
             ${departmentOptions}
           </select>
           <div style="margin-top:8px;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="uploadSendEmail" style="width:18px;height:18px;cursor:pointer;" disabled>
-              <span class="small-muted" id="emailCheckboxLabel">Select a department to enable email notification</span>
             </label>
           </div>
         </div>
-        
-        <div class="form-row">
-    <label>Category</label>
-    <select id="uploadCategory">
-        <option value="">Select Category (Optional)</option>
-        ${categoryOptions}
-    </select>
-    <div class="small-muted" style="margin-top:4px;">
-        <i class="fa-solid fa-circle-info"></i> 
-        Files will be automatically classified and can also be manually categorized.
-    </div>
-</div>
         
         <div style="display:flex;gap:12px;justify-content:flex-end">
           <button class="btn-secondary" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
@@ -3289,7 +3275,7 @@ async function handleFilesFromModal() {
     const files = Array.from(fileInput.files || []);
     const selectedWorkspaceCheckboxes = document.querySelectorAll('#uploadWorkspaceCheckboxes input[type="checkbox"]:checked');
     const selectedWorkspaceIds = Array.from(selectedWorkspaceCheckboxes).map(checkbox => parseInt(checkbox.value));
-    const categoryId = categorySelect && categorySelect.value && categorySelect.value.trim() !== "" ? categorySelect.value : null;
+    const categoryId = null;
     const departmentId = departmentSelect && departmentSelect.value && departmentSelect.value.trim() !== "" ? departmentSelect.value : null;
     const sendEmail = sendEmailCheckbox && sendEmailCheckbox.checked;
 

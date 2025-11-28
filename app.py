@@ -1,6 +1,3 @@
-def hash_file_path(file_path):
-    """Return a SHA-256 hash of the file path as a hex string."""
-    return hashlib.sha256(file_path.encode('utf-8')).hexdigest()
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
@@ -22,6 +19,86 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 import pandas as pd
 from html import escape
+from cryptography.fernet import Fernet, InvalidToken
+
+
+def _init_fernet():
+    """
+    Initialize a single Fernet instance for encrypting sensitive values.
+    Uses the DMS_FERNET_KEY environment variable when available,
+    otherwise falls back to None (and callers should degrade gracefully).
+    """
+    key = os.environ.get("DMS_FERNET_KEY")
+    if not key:
+        return None
+    try:
+        # Allow raw bytes or base64-encoded string
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        return Fernet(key)
+    except Exception as e:
+        print(f"WARNING: Invalid DMS_FERNET_KEY, falling back to hash-only mode: {e}")
+        return None
+
+
+FERNET = _init_fernet()
+
+
+def current_encryption_version():
+    """Return a short tag describing the mechanism protecting file paths."""
+    return 'fernet_v1' if FERNET else 'hash_v1'
+
+
+def encrypt_sensitive(value: str) -> str:
+    """
+    Encrypt a sensitive string value using Fernet if configured,
+    otherwise fall back to a one-way SHA-256 hash.
+    """
+    if value is None:
+        return None
+
+    # Ensure string
+    if not isinstance(value, str):
+        value = str(value)
+
+    if FERNET is None:
+        # Backwards-compatible behaviour: deterministic hash
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    token = FERNET.encrypt(value.encode("utf-8"))
+    return token.decode("utf-8")
+
+
+def decrypt_sensitive(token: str) -> str | None:
+    """
+    Decrypt a Fernet-encrypted token. Returns None if decryption
+    is not possible (no key configured or invalid token).
+    """
+    if token is None or FERNET is None:
+        return None
+
+    if not isinstance(token, str):
+        token = str(token)
+
+    try:
+        value = FERNET.decrypt(token.encode("utf-8"))
+        return value.decode("utf-8")
+    except InvalidToken:
+        return None
+    except Exception as e:
+        print(f"WARNING: decrypt_sensitive failed: {e}")
+        return None
+
+
+def hash_file_path(file_path):
+    """
+    Backwards-compatible helper for protecting file paths before storing
+    them in the database. Now uses Fernet when configured for reversible
+    encryption, and otherwise falls back to a one-way SHA-256 hash.
+    """
+    if not file_path:
+        return None
+    return encrypt_sensitive(file_path)
 
 app = Flask(__name__)
 CORS(app)
@@ -72,6 +149,24 @@ def serialize_user_record(user):
     user_copy = dict(user)
     user_copy['profile_image'] = build_profile_image_url(user_copy.get('profile_image'))
     return user_copy
+
+
+def build_company_logo_url(token):
+    if not token:
+        return None
+    if token.startswith('http'):
+        return token
+    if token.startswith('/'):
+        return token
+    return f"/api/uploads/company_logo/{token}"
+
+
+def serialize_settings_record(settings):
+    if not settings:
+        return settings
+    s = dict(settings)
+    s['company_logo_url'] = build_company_logo_url(s.get('company_logo'))
+    return s
 
 def save_uploaded_file(file, user_id, custom_filename=None, allow_overwrite=False):
     try:
@@ -418,7 +513,9 @@ def upload_file():
             'text_sample': classification_result.get('text_sample'),
             'shared': False,
             'document_type_category_id': None,
-            'file_path': file_path_hash  # Store only the hash in the DB
+            'file_path': file_path_hash,  # Store only the protected path/token in the DB
+            'is_encrypted': bool(file_path_hash),
+            'encryption_version': current_encryption_version()
         }
 
         print(f"DEBUG: Creating file record with data: {file_data}")
@@ -1292,15 +1389,16 @@ class DMSDatabase:
     def create_file(file_data):
         query = """INSERT INTO files (name, original_name, size, type, user_id, workspace_id, category_id, 
                 document_type, classification_confidence, classification_error, text_sample, 
-                shared, document_type_category_id, file_path) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                shared, document_type_category_id, file_path, is_encrypted, encryption_version) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         params = (
             file_data['name'], file_data['original_name'], file_data['size'], file_data['type'],
             file_data['user_id'], file_data.get('workspace_id'), file_data.get('category_id'),
             file_data.get('document_type'), file_data.get('classification_confidence'),
             file_data.get('classification_error'), file_data.get('text_sample'),
             file_data.get('shared', False), file_data.get('document_type_category_id'),
-            file_data.get('file_path')  
+            file_data.get('file_path'), file_data.get('is_encrypted', False),
+            file_data.get('encryption_version')
         )
         return DatabaseConfig.execute_query(query, params, lastrowid=True)
 
@@ -1762,12 +1860,40 @@ class DMSDatabase:
     @staticmethod
     def get_settings():
         query = "SELECT * FROM settings WHERE settings_id = 6001"
-        return DatabaseConfig.execute_query(query, fetch_one=True)
+        settings = DatabaseConfig.execute_query(query, fetch_one=True)
+        # Provide sane defaults if the row is missing or incomplete
+        if not settings:
+            return {
+                'company': 'DMS',
+                'max_file_mb': 50,
+                'allowed_types': 'pdf,doc,docx,jpg,jpeg,png,txt',
+                'company_logo': None,
+            }
+        # Ensure keys exist for frontend expectations
+        settings.setdefault('company', 'DMS')
+        settings.setdefault('max_file_mb', 50)
+        settings.setdefault('allowed_types', 'pdf,doc,docx,jpg,jpeg,png,txt')
+        settings.setdefault('company_logo', None)
+        return settings
 
     @staticmethod
-    def update_settings(company, max_file_mb, allowed_types):
-        query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s WHERE settings_id=6001"
-        return DatabaseConfig.execute_query(query, (company, max_file_mb, allowed_types))
+    def update_settings(company, max_file_mb, allowed_types, company_logo=None):
+        """
+        Update core system settings. If company_logo is None, the existing logo
+        is preserved to avoid accidentally clearing it.
+        """
+        if company_logo is None:
+            query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s WHERE settings_id=6001"
+            params = (company, max_file_mb, allowed_types)
+        else:
+            query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, company_logo=%s WHERE settings_id=6001"
+            params = (company, max_file_mb, allowed_types, company_logo)
+        return DatabaseConfig.execute_query(query, params)
+
+    @staticmethod
+    def update_company_logo(company_logo):
+        query = "UPDATE settings SET company_logo=%s WHERE settings_id=6001"
+        return DatabaseConfig.execute_query(query, (company_logo,))
 
     # Activity log operations
     @staticmethod
@@ -2180,6 +2306,19 @@ def serve_profile_image(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/uploads/company_logo/<filename>')
+def serve_company_logo(filename):
+    """Serve company logo images"""
+    try:
+        logo_path = os.path.join(os.path.dirname(__file__), 'uploads', 'company_logo', filename)
+        if os.path.exists(logo_path):
+            return send_file(logo_path)
+        else:
+            return jsonify({'error': 'Logo not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/users/<int:user_id>/restore', methods=['POST'])
 def restore_user(user_id):
     try:
@@ -2433,6 +2572,14 @@ def rename_file(file_id):
         file_record = DMSDatabase.get_file_by_id(file_id)
         if not file_record:
             return jsonify({'success': False, 'error': 'File not found'}), 404
+
+        # Permission: only owner/editor/admin can rename
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        permission = get_user_file_permission(file_record, request_user)
+        if permission not in ('owner', 'editor', 'admin'):
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         user_id = file_record['user_id']
         original_name = file_record['name']
@@ -2500,7 +2647,12 @@ def rename_file(file_id):
                 
                 # Update the file_path hash in database
                 new_file_path_hash = hash_file_path(new_file_path)
-                DMSDatabase.update_file(file_id, {'name': new_name, 'file_path': new_file_path_hash})
+                DMSDatabase.update_file(file_id, {
+                    'name': new_name,
+                    'file_path': new_file_path_hash,
+                    'is_encrypted': bool(new_file_path_hash),
+                    'encryption_version': current_encryption_version()
+                })
             except Exception as e:
                 print(f"Warning: Could not rename physical file: {e}")
                 # Still update the name in database even if physical rename fails
@@ -2527,6 +2679,14 @@ def archive_file_api(file_id):
         if not file_record:
             print(f"DEBUG: API - File {file_id} not found")
             return jsonify({'success': False, 'error': 'File not found'}), 404
+
+        # Permission: only owner/editor/admin can archive
+        request_user = get_request_user()
+        if not request_user:
+          return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        permission = get_user_file_permission(file_record, request_user)
+        if permission not in ('owner', 'editor', 'admin'):
+          return jsonify({'success': False, 'error': 'Access denied'}), 403
         
         print(f"DEBUG: API - File found: {file_record['name']}")
         
@@ -2556,6 +2716,18 @@ def update_file_workspaces_api(file_id):
     try:
         data = request.json
         workspace_ids = data.get('workspace_ids', [])
+
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'error': 'File not found'}), 404
+
+        # Permission: only owner/editor/admin can manage workspaces
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'error': 'Unauthorized'}), 401
+        permission = get_user_file_permission(file_record, request_user)
+        if permission not in ('owner', 'editor', 'admin'):
+            return jsonify({'error': 'Access denied'}), 403
         
         print(f"DEBUG: API - Updating workspaces for file {file_id} to: {workspace_ids}")
         
@@ -2842,13 +3014,75 @@ def create_workspace():
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
     settings = DMSDatabase.get_settings()
-    return jsonify(settings or {})
+    return jsonify(serialize_settings_record(settings) or {})
 
 @app.route('/api/settings', methods=['PUT'])
 def update_settings():
     data = request.json
-    DMSDatabase.update_settings(data['company'], data['max_file_mb'], data['allowed_types'])
+    DMSDatabase.update_settings(
+        data['company'],
+        data['max_file_mb'],
+        data['allowed_types'],
+        data.get('company_logo')
+    )
     return jsonify({'success': True})
+
+
+@app.route('/api/settings/logo', methods=['POST'])
+def upload_company_logo():
+    """
+    Upload and save a global company logo image for the system.
+    The stored filename is protected using the same helper that protects file paths.
+    """
+    try:
+        if 'logo' not in request.files:
+            return jsonify({'error': 'No logo file provided'}), 400
+
+        file = request.files['logo']
+        if file.filename == '':
+            return jsonify({'error': 'Please select an image file'}), 400
+
+        if not file.content_type.startswith('image/'):
+            return jsonify({'error': 'File must be an image'}), 400
+
+        # Basic size limit: 5MB
+        file.seek(0, 2)
+        size = file.tell()
+        file.seek(0)
+        if size > 5 * 1024 * 1024:
+            return jsonify({'error': 'Logo size must be less than 5MB'}), 400
+
+        upload_folder = os.path.join(os.path.dirname(__file__), 'uploads', 'company_logo')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        import time
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
+        raw_filename = f"logo_{int(time.time())}.{file_ext}"
+        raw_path = os.path.join(upload_folder, raw_filename)
+
+        file.save(raw_path)
+
+        # Protect the stored filename using the same helper as other file paths
+        protected_name = hash_file_path(raw_path)
+        safe_token = f"{protected_name}.{file_ext}" if protected_name else raw_filename
+        final_path = os.path.join(upload_folder, safe_token)
+
+        try:
+            if os.path.exists(final_path):
+                os.remove(final_path)
+            os.rename(raw_path, final_path)
+            stored_token = safe_token
+        except Exception as e:
+            print(f"Company logo rename error: {e}")
+            stored_token = raw_filename
+
+        DMSDatabase.update_company_logo(stored_token)
+        logo_url = build_company_logo_url(stored_token)
+
+        return jsonify({'success': True, 'logo_url': logo_url, 'logo_token': stored_token})
+    except Exception as e:
+        print(f"Error uploading company logo: {e}")
+        return jsonify({'error': f'Failed to upload company logo: {str(e)}'}), 500
 
 @app.route('/api/activities', methods=['GET'])
 def get_activities():
@@ -3074,4 +3308,5 @@ def health_check():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
 

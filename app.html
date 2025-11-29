@@ -4023,37 +4023,31 @@
         return ""; // No extension
       }
 
-      // Function to populate the file type dropdown with all allowed file types
+      // Function to populate the file type dropdown with file types that exist in user's library
       async function populateFileTypeDropdown(files) {
         const filterTypeSelect = document.getElementById("filterType");
         if (!filterTypeSelect) return;
 
-        // Store current selection
         const currentSelection = filterTypeSelect.value;
 
-        // Clear existing options except the first one
         while (filterTypeSelect.options.length > 1) {
           filterTypeSelect.remove(1);
         }
 
-        // Get all allowed file types from settings
-        const settings = await getSettings();
-        const allowedTypes = settings?.allowed_types || 'pdf,doc,docx,jpg,jpeg,png,txt,xls,xlsx,ppt,pptx,zip';
-        const allowedExtensions = allowedTypes.split(',').map(t => t.trim().toLowerCase());
+        const activeFiles = (files || []).filter(f => f.status === 'active');
+        const uniqueExtensions = getUniqueFileExtensions(activeFiles);
 
-        // Add all allowed file type options
-        allowedExtensions.forEach((ext) => {
-          if (ext) {
-            const option = document.createElement("option");
-            option.value = ext;
-            option.textContent = ext.toUpperCase();
-            filterTypeSelect.appendChild(option);
-          }
+        uniqueExtensions.forEach((ext) => {
+          const option = document.createElement("option");
+          option.value = ext;
+          option.textContent = ext.toUpperCase();
+          filterTypeSelect.appendChild(option);
         });
 
-        // Restore previous selection if it still exists
-        if (currentSelection && allowedExtensions.includes(currentSelection)) {
+        if (currentSelection && uniqueExtensions.includes(currentSelection)) {
           filterTypeSelect.value = currentSelection;
+        } else {
+          filterTypeSelect.value = "";
         }
       }
 
@@ -5373,37 +5367,31 @@
         return Array.from(extensions).sort();
       }
 
-      // Function to populate the file type dropdown with all allowed file types
+      // Function to populate the file type dropdown with file types that exist in user's library
       async function populateFileTypeDropdown(files) {
         const filterTypeSelect = document.getElementById("filterType");
         if (!filterTypeSelect) return;
 
-        // Store current selection
         const currentSelection = filterTypeSelect.value;
 
-        // Clear existing options except the first one
         while (filterTypeSelect.options.length > 1) {
           filterTypeSelect.remove(1);
         }
 
-        // Get all allowed file types from settings
-        const settings = await getSettings();
-        const allowedTypes = settings?.allowed_types || 'pdf,doc,docx,jpg,jpeg,png,txt,xls,xlsx,ppt,pptx,zip';
-        const allowedExtensions = allowedTypes.split(',').map(t => t.trim().toLowerCase());
+        const activeFiles = (files || []).filter(f => f.status === 'active');
+        const uniqueExtensions = getUniqueFileExtensions(activeFiles);
 
-        // Add all allowed file type options
-        allowedExtensions.forEach((ext) => {
-          if (ext) {
-            const option = document.createElement("option");
-            option.value = ext;
-            option.textContent = ext.toUpperCase();
-            filterTypeSelect.appendChild(option);
-          }
+        uniqueExtensions.forEach((ext) => {
+          const option = document.createElement("option");
+          option.value = ext;
+          option.textContent = ext.toUpperCase();
+          filterTypeSelect.appendChild(option);
         });
 
-        // Restore previous selection if it still exists
-        if (currentSelection && allowedExtensions.includes(currentSelection)) {
+        if (currentSelection && uniqueExtensions.includes(currentSelection)) {
           filterTypeSelect.value = currentSelection;
+        } else {
+          filterTypeSelect.value = "";
         }
       }
 

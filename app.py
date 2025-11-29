@@ -1490,23 +1490,46 @@ class DMSDatabase:
 
     @staticmethod
     def delete_file(file_id):
+        connection = None
+        cursor = None
         try:
-            # First get the file path
             file_record = DMSDatabase.get_file_by_id(file_id)
-            if file_record and file_record.get('file_path'):
-                # Delete the physical file
+            if not file_record:
+                print(f"DEBUG: File {file_id} not found for deletion")
+                return False
+            
+            print(f"DEBUG: Deleting file {file_id} - {file_record.get('name')}")
+            
+            if file_record.get('file_path'):
                 try:
-                    if os.path.exists(file_record['file_path']):
-                        os.remove(file_record['file_path'])
+                    actual_path = resolve_file_path(file_record)
+                    if actual_path and os.path.exists(actual_path):
+                        os.remove(actual_path)
+                        print(f"DEBUG: Physical file deleted: {actual_path}")
                 except Exception as e:
                     print(f"Warning: Could not delete physical file: {e}")
             
-            # Then update the database status
-            query = "UPDATE files SET status='deleted' WHERE file_id=%s"
-            return DatabaseConfig.execute_query(query, (file_id,))
+            connection = DatabaseConfig.get_connection()
+            cursor = connection.cursor()
+            
+            cursor.execute("DELETE FROM file_workspaces WHERE file_id = %s", (file_id,))
+            cursor.execute("DELETE FROM file_shares WHERE file_id = %s", (file_id,))
+            cursor.execute("DELETE FROM files WHERE file_id = %s", (file_id,))
+            
+            connection.commit()
+            print(f"DEBUG: File {file_id} database deletion completed successfully")
+            return True
+            
         except Exception as e:
-            print(f"Error deleting file: {e}")
-            return None
+            print(f"Error deleting file {file_id}: {e}")
+            if connection:
+                connection.rollback()
+            return False
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
 
     @staticmethod
     def archive_file(file_id):
@@ -2841,8 +2864,38 @@ def debug_file_status(file_id):
 
 @app.route('/api/files/<int:file_id>', methods=['DELETE'])
 def delete_file(file_id):
-    DMSDatabase.delete_file(file_id)
-    return jsonify({'success': True})
+    try:
+        file_record = DMSDatabase.get_file_by_id(file_id)
+        if not file_record:
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+
+        request_user = get_request_user()
+        if not request_user:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+        permission = get_user_file_permission(file_record, request_user)
+        if permission not in ('owner', 'admin'):
+            return jsonify({'success': False, 'error': 'Access denied'}), 403
+
+        result = DMSDatabase.delete_file(file_id)
+        
+        if result:
+            print(f"DEBUG: File {file_id} deleted successfully")
+            
+            if request_user:
+                DMSDatabase.log_activity(
+                    request_user['user_id'], 
+                    f"Permanently deleted file: {file_record.get('name')}"
+                )
+            
+            return jsonify({'success': True, 'message': 'File deleted permanently'})
+        else:
+            print(f"DEBUG: Failed to delete file {file_id}")
+            return jsonify({'success': False, 'error': 'Failed to delete file'}), 500
+            
+    except Exception as e:
+        print(f"Delete file API error: {e}")
+        return jsonify({'success': False, 'error': f'Delete failed: {str(e)}'}), 500
 
 @app.route('/api/files/<int:file_id>/restore', methods=['POST'])
 def restore_file(file_id):

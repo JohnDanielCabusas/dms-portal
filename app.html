@@ -1786,24 +1786,24 @@
       .current-password-field {
         margin-bottom: 8px;
       }
-    /* Custom file button for System Settings */
-    .custom-file-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 18px;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      transition: background 0.2s;
-    }
-    .custom-file-btn:hover {
-      background: var(--accent-dark, #0056b3);
-    }
+      /* Custom file button for System Settings */
+      .custom-file-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 18px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        transition: background 0.2s;
+      }
+      .custom-file-btn:hover {
+        background: var(--accent-dark, #0056b3);
+      }
     </style>
 
     <!-- Report export libraries -->
@@ -2298,32 +2298,85 @@
             <div class="card">
               <div class="form-row">
                 <label class="small-muted">Company logo</label>
-                <div style="display:flex;align-items:center;gap:12px;">
+                <div style="display: flex; align-items: center; gap: 12px">
                   <div
                     id="settingLogoPreview"
-                    style="width:40px;height:40px;border-radius:8px;background:var(--accent-light);display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--accent);overflow:hidden;flex-shrink:0"
+                    style="
+                      width: 40px;
+                      height: 40px;
+                      border-radius: 8px;
+                      background: var(--accent-light);
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-weight: 600;
+                      color: var(--accent);
+                      overflow: hidden;
+                      flex-shrink: 0;
+                    "
                   >
                     DM
                   </div>
-                  <div style="flex:1;display:flex;align-items:center;gap:12px;position:relative;">
-  <input
-    type="file"
-    id="settingLogoInput"
-    accept="image/*"
-    style="opacity:0;position:absolute;left:0;top:0;width:160px;height:40px;cursor:pointer;z-index:2;"
-    onchange="handleCompanyLogoUpload(event)"
-  />
-  <button type="button" class="custom-file-btn" onclick="document.getElementById('settingLogoInput').click();" style="display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:background 0.2s;">
-    <i class="fa-solid fa-upload"></i> Upload
-  </button>
-  <span
-    id="settingLogoFileName"
-    class="small-muted"
-    style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;display:inline-block;"
-  >
-    No file chosen
-  </span>
-</div>
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      align-items: center;
+                      gap: 12px;
+                      position: relative;
+                    "
+                  >
+                    <input
+                      type="file"
+                      id="settingLogoInput"
+                      accept="image/*"
+                      style="
+                        opacity: 0;
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 160px;
+                        height: 40px;
+                        cursor: pointer;
+                        z-index: 2;
+                      "
+                      onchange="handleCompanyLogoUpload(event)"
+                    />
+                    <button
+                      type="button"
+                      class="custom-file-btn"
+                      onclick="document.getElementById('settingLogoInput').click();"
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 8px 18px;
+                        background: var(--accent);
+                        color: #fff;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                        transition: background 0.2s;
+                      "
+                    >
+                      <i class="fa-solid fa-upload"></i> Upload
+                    </button>
+                    <span
+                      id="settingLogoFileName"
+                      class="small-muted"
+                      style="
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        max-width: 160px;
+                        display: inline-block;
+                      "
+                    >
+                      No file chosen
+                    </span>
+                  </div>
                 </div>
               </div>
               <div class="form-row">
@@ -2335,7 +2388,9 @@
                 <input id="settingMax" type="number" min="1" />
               </div>
               <div class="form-row">
-                <label class="small-muted">Allowed types (comma separated)</label>
+                <label class="small-muted"
+                  >Allowed types (comma separated)</label
+                >
                 <input id="settingTypes" />
               </div>
               <div style="margin-top: 16px">
@@ -3461,7 +3516,7 @@
       </div>`);
 
         // Drag and drop handlers
-        window.handleDragOver = function(e) {
+        window.handleDragOver = function (e) {
           e.preventDefault();
           e.stopPropagation();
           const dropZone = document.getElementById("fileDropZone");
@@ -3471,7 +3526,7 @@
           }
         };
 
-        window.handleDragLeave = function(e) {
+        window.handleDragLeave = function (e) {
           e.preventDefault();
           e.stopPropagation();
           const dropZone = document.getElementById("fileDropZone");
@@ -3481,7 +3536,7 @@
           }
         };
 
-        window.handleFileDrop = function(e) {
+        window.handleFileDrop = function (e) {
           e.preventDefault();
           e.stopPropagation();
           const dropZone = document.getElementById("fileDropZone");
@@ -3489,7 +3544,7 @@
             dropZone.style.borderColor = "var(--border)";
             dropZone.style.background = "var(--bg-subtle)";
           }
-          
+
           const files = e.dataTransfer.files;
           if (files && files.length > 0) {
             const fileInput = document.getElementById("fileInputModal");
@@ -3512,16 +3567,19 @@
           }
         };
 
-        window.handleFileSelect = function(e) {
+        window.handleFileSelect = function (e) {
           const fileInput = e.target;
           const filesList = document.getElementById("selectedFilesList");
           if (filesList && fileInput.files && fileInput.files.length > 0) {
-            let html = '<div style="font-weight:600;margin-bottom:8px;color:var(--text);">Selected Files:</div>';
+            let html =
+              '<div style="font-weight:600;margin-bottom:8px;color:var(--text);">Selected Files:</div>';
             for (let i = 0; i < fileInput.files.length; i++) {
               const file = fileInput.files[i];
               const size = (file.size / 1024).toFixed(2);
               html += `<div style="padding:8px;background:var(--bg);border-radius:4px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
-                <span class="small-muted">${escapeHtml(file.name)} (${size} KB)</span>
+                <span class="small-muted">${escapeHtml(
+                  file.name
+                )} (${size} KB)</span>
                 <button onclick="removeFileFromList(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;padding:4px 8px;">
                   <i class="fa-solid fa-times"></i>
                 </button>
@@ -3533,7 +3591,7 @@
           }
         };
 
-        window.removeFileFromList = function(index) {
+        window.removeFileFromList = function (index) {
           const fileInput = document.getElementById("fileInputModal");
           if (fileInput && fileInput.files) {
             const dataTransfer = new DataTransfer();
@@ -3926,7 +3984,9 @@
                         }, this)">${f.name}</div>
                         <div class="doc-meta">${
                           (f.size / 1024) | 0
-                        } KB • ${new Date(f.created_at).toLocaleString()}</div>
+                        } KB • ${new Date(
+              f.created_at
+            ).toLocaleDateString()}</div>
                         ${
                           accessLabel
                             ? `<div class="small-muted">Access: ${accessLabel}</div>`
@@ -4055,7 +4115,7 @@
           filterTypeSelect.remove(1);
         }
 
-        const activeFiles = (files || []).filter(f => f.status === 'active');
+        const activeFiles = (files || []).filter((f) => f.status === "active");
         const uniqueExtensions = getUniqueFileExtensions(activeFiles);
 
         uniqueExtensions.forEach((ext) => {
@@ -5399,7 +5459,7 @@
           filterTypeSelect.remove(1);
         }
 
-        const activeFiles = (files || []).filter(f => f.status === 'active');
+        const activeFiles = (files || []).filter((f) => f.status === "active");
         const uniqueExtensions = getUniqueFileExtensions(activeFiles);
 
         uniqueExtensions.forEach((ext) => {
@@ -5517,7 +5577,9 @@
                         }, this)">${f.name}</div>
                         <div class="doc-meta">${
                           (f.size / 1024) | 0
-                        } KB • ${new Date(f.created_at).toLocaleString()}</div>
+                        } KB • ${new Date(
+              f.created_at
+            ).toLocaleDateString()}</div>
                         ${
                           accessLabel
                             ? `<div class="small-muted">Access: ${accessLabel}</div>`
@@ -5623,7 +5685,7 @@
           if (currentView === "library") {
             // Get files and populate dropdown before rendering
             const files = await getAllFiles();
-            await             await populateFileTypeDropdown(files);
+            await await populateFileTypeDropdown(files);
             await renderFiles();
             console.log("DEBUG: Library view refreshed");
           } else if (currentView === "workspace-detail" && currentWorkspaceId) {
@@ -5981,7 +6043,7 @@
           name: "Unknown",
           role: "unknown",
         };
-        
+
         // Format role label in sentence case (e.g., "Department Admin")
         function formatRoleForDisplay(role) {
           if (role === "system_admin") return "System Admin";
@@ -5990,7 +6052,7 @@
           const cleaned = (role || "Unknown").replace(/_/g, " ").toLowerCase();
           return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
         }
-        
+
         const roleLabel = formatRoleForDisplay(owner.role || "unknown");
         const uploadedByRole = `[${roleLabel}]`;
         const uploadedByName = owner.name || "Unknown";
@@ -6941,7 +7003,7 @@
           );
         });
         const workspace = allowedWorkspaces.find((w) => w.workspace_id == id);
-        
+
         if (!workspace) {
           showToast("You do not have access to this workspace.", "error");
           return;
@@ -6950,7 +7012,7 @@
         // Get files and members for this workspace
         const workspaceFiles = await getWorkspaceFiles(id);
         const users = await getAllUsers();
-        
+
         const memberDetails = await Promise.all(
           (workspace.members || []).map(async (memberId) => {
             const user = users.find((u) => u.user_id === memberId);
@@ -6970,52 +7032,85 @@
         ).then((results) => results.filter(Boolean));
 
         // Build files HTML
-        const filesHtml = workspaceFiles.length > 0
-          ? workspaceFiles.slice(0, 10).map((file) => `
+        const filesHtml =
+          workspaceFiles.length > 0
+            ? workspaceFiles
+                .slice(0, 10)
+                .map(
+                  (file) => `
               <div style="display:flex;align-items:center;gap:12px;padding:8px;border-bottom:1px solid var(--border);">
                 <i class="fa-solid fa-file" style="color:var(--accent);"></i>
                 <div style="flex:1;">
                   <div style="font-weight:500;">${escapeHtml(file.name)}</div>
-                  <div class="small-muted">${(file.size / 1024).toFixed(2)} KB</div>
+                  <div class="small-muted">${(file.size / 1024).toFixed(
+                    2
+                  )} KB</div>
                 </div>
               </div>
-            `).join("")
-          : '<div class="small-muted" style="text-align:center;padding:20px;">No files in this workspace</div>';
+            `
+                )
+                .join("")
+            : '<div class="small-muted" style="text-align:center;padding:20px;">No files in this workspace</div>';
 
         // Build members HTML
-        const membersHtml = memberDetails.length > 0
-          ? memberDetails.map((member) => `
+        const membersHtml =
+          memberDetails.length > 0
+            ? memberDetails
+                .map(
+                  (member) => `
               <div style="display:flex;align-items:center;gap:12px;padding:8px;border-bottom:1px solid var(--border);">
-                <div class="member-avatar" style="width:32px;height:32px;font-size:12px;">${member.initials}</div>
+                <div class="member-avatar" style="width:32px;height:32px;font-size:12px;">${
+                  member.initials
+                }</div>
                 <div style="flex:1;">
                   <div style="font-weight:500;">${escapeHtml(member.name)}</div>
                   <div class="small-muted">${escapeHtml(member.email)}</div>
                 </div>
               </div>
-            `).join("")
-          : '<div class="small-muted" style="text-align:center;padding:20px;">No members in this workspace</div>';
+            `
+                )
+                .join("")
+            : '<div class="small-muted" style="text-align:center;padding:20px;">No members in this workspace</div>';
 
         openModal(`<h3>${escapeHtml(workspace.name)}</h3>
         <div style="display:flex;flex-direction:column;gap:24px;max-height:70vh;overflow-y:auto;">
           <div>
-            <div class="small-muted" style="margin-bottom:12px;">${escapeHtml(workspace.description || "No description provided")}</div>
+            <div class="small-muted" style="margin-bottom:12px;">${escapeHtml(
+              workspace.description || "No description provided"
+            )}</div>
             <div style="display:flex;gap:16px;margin-bottom:16px;">
-              <div class="meta-item"><i class="fa-solid fa-file"></i> ${workspaceFiles.length} files</div>
-              <div class="meta-item"><i class="fa-solid fa-user"></i> ${memberDetails.length} members</div>
-              <div class="meta-item"><i class="fa-solid fa-calendar"></i> ${new Date(workspace.created_at).toLocaleDateString()}</div>
+              <div class="meta-item"><i class="fa-solid fa-file"></i> ${
+                workspaceFiles.length
+              } files</div>
+              <div class="meta-item"><i class="fa-solid fa-user"></i> ${
+                memberDetails.length
+              } members</div>
+              <div class="meta-item"><i class="fa-solid fa-calendar"></i> ${new Date(
+                workspace.created_at
+              ).toLocaleDateString()}</div>
             </div>
           </div>
           
           <div>
-            <h4 style="margin-bottom:12px;font-size:16px;">Files (${workspaceFiles.length})</h4>
+            <h4 style="margin-bottom:12px;font-size:16px;">Files (${
+              workspaceFiles.length
+            })</h4>
             <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
               ${filesHtml}
-              ${workspaceFiles.length > 10 ? `<div class="small-muted" style="text-align:center;padding:12px;">... and ${workspaceFiles.length - 10} more files</div>` : ""}
+              ${
+                workspaceFiles.length > 10
+                  ? `<div class="small-muted" style="text-align:center;padding:12px;">... and ${
+                      workspaceFiles.length - 10
+                    } more files</div>`
+                  : ""
+              }
             </div>
           </div>
           
           <div>
-            <h4 style="margin-bottom:12px;font-size:16px;">Members (${memberDetails.length})</h4>
+            <h4 style="margin-bottom:12px;font-size:16px;">Members (${
+              memberDetails.length
+            })</h4>
             <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
               ${membersHtml}
             </div>
@@ -7025,11 +7120,16 @@
             <button class="btn-secondary" onclick="closeModal()">
               <i class="fa-solid fa-xmark"></i> Close
             </button>
-            ${(currentUser?.role === "system_admin" || currentUser?.role === "department_admin") ? `
+            ${
+              currentUser?.role === "system_admin" ||
+              currentUser?.role === "department_admin"
+                ? `
             <button onclick="closeModal(); currentWorkspaceId = ${id}; currentView = 'workspace-detail'; renderCurrentView();">
               <i class="fa-solid fa-arrow-right"></i> Open Workspace
             </button>
-            ` : ""}
+            `
+                : ""
+            }
           </div>
         </div>`);
       }
@@ -7146,12 +7246,19 @@
           </div>
         </div>
         ${
-          (currentUser?.role === "system_admin" || currentUser?.role === "department_admin")
+          currentUser?.role === "system_admin" ||
+          currentUser?.role === "department_admin"
             ? `
           <div class="workspace-detail-actions">
-            <button onclick="openEditWorkspace(${workspace.workspace_id})" title="Edit"><i class="fa-solid fa-pen"></i></button>
+            <button onclick="openEditWorkspace(${
+              workspace.workspace_id
+            })" title="Edit"><i class="fa-solid fa-pen"></i></button>
             <button onclick="openAddFileModal()" title="Add Files"><i class="fa-solid fa-plus"></i></button>
-            ${currentUser?.role === "system_admin" ? `<button class="btn-danger" onclick="deleteWorkspace(${workspace.workspace_id}); goToWorkspaces();" title="Delete"><i class="fa-solid fa-trash"></i></button>` : ""}
+            ${
+              currentUser?.role === "system_admin"
+                ? `<button class="btn-danger" onclick="deleteWorkspace(${workspace.workspace_id}); goToWorkspaces();" title="Delete"><i class="fa-solid fa-trash"></i></button>`
+                : ""
+            }
           </div>
         `
             : `
@@ -8577,7 +8684,7 @@
             (d) =>
               `<option value="${d.department_id}" ${
                 d.department_id == user.department_id ? "selected" : ""
-                }>${d.name}</option>`
+              }>${d.name}</option>`
           )
           .join("");
 
@@ -9160,16 +9267,20 @@
             }, '${d.name.replace(/'/g, "\\'")}')" title="Edit">
               <i class="fa-solid fa-pen"></i>
             </button>
-            ${currentUser?.role === "system_admin" ? `
+            ${
+              currentUser?.role === "system_admin"
+                ? `
             <button class="icon-btn" onclick="deleteDepartment(${
               d.department_id
             }, '${d.name.replace(
-            /'/g,
-            "\\'"
-          )}')" title="Delete" style="color:var(--danger)">
+                    /'/g,
+                    "\\'"
+                  )}')" title="Delete" style="color:var(--danger)">
               <i class="fa-solid fa-trash"></i>
             </button>
-            ` : ""}
+            `
+                : ""
+            }
           </div>
         </div>
       `;
@@ -9182,9 +9293,11 @@
         const departments = await getAllDepartments();
         const users = await getAllUsers();
         const currentUser = currentUserData || (await getCurrentUser());
-        
-        const department = departments.find((d) => d.department_id == departmentId);
-        
+
+        const department = departments.find(
+          (d) => d.department_id == departmentId
+        );
+
         if (!department) {
           showToast("Department not found.", "error");
           return;
@@ -9206,8 +9319,11 @@
         });
 
         // Build users HTML
-        const usersHtml = deptUsers.length > 0
-          ? deptUsers.map((user) => `
+        const usersHtml =
+          deptUsers.length > 0
+            ? deptUsers
+                .map(
+                  (user) => `
               <div style="display:flex;align-items:center;gap:12px;padding:8px;border-bottom:1px solid var(--border);">
                 <div class="member-avatar" style="width:32px;height:32px;font-size:12px;">${user.name
                   .split(" ")
@@ -9217,45 +9333,79 @@
                   .toUpperCase()}</div>
                 <div style="flex:1;">
                   <div style="font-weight:500;">${escapeHtml(user.name)}</div>
-                  <div class="small-muted">${escapeHtml(user.email)} • ${user.role === "system_admin" ? "System Admin" : user.role === "department_admin" ? "Dept Admin" : "Staff"}</div>
+                  <div class="small-muted">${escapeHtml(user.email)} • ${
+                    user.role === "system_admin"
+                      ? "System Admin"
+                      : user.role === "department_admin"
+                      ? "Dept Admin"
+                      : "Staff"
+                  }</div>
                 </div>
               </div>
-            `).join("")
-          : '<div class="small-muted" style="text-align:center;padding:20px;">No members in this department</div>';
+            `
+                )
+                .join("")
+            : '<div class="small-muted" style="text-align:center;padding:20px;">No members in this department</div>';
 
         // Build files HTML
-        const filesHtml = departmentFiles.length > 0
-          ? departmentFiles.slice(0, 10).map((file) => `
+        const filesHtml =
+          departmentFiles.length > 0
+            ? departmentFiles
+                .slice(0, 10)
+                .map(
+                  (file) => `
               <div style="display:flex;align-items:center;gap:12px;padding:8px;border-bottom:1px solid var(--border);">
                 <i class="fa-solid fa-file" style="color:var(--accent);"></i>
                 <div style="flex:1;">
                   <div style="font-weight:500;">${escapeHtml(file.name)}</div>
-                  <div class="small-muted">${(file.size / 1024).toFixed(2)} KB • ${new Date(file.created_at).toLocaleDateString()}</div>
+                  <div class="small-muted">${(file.size / 1024).toFixed(
+                    2
+                  )} KB • ${new Date(
+                    file.created_at
+                  ).toLocaleDateString()}</div>
                 </div>
               </div>
-            `).join("")
-          : '<div class="small-muted" style="text-align:center;padding:20px;">No files in this department</div>';
+            `
+                )
+                .join("")
+            : '<div class="small-muted" style="text-align:center;padding:20px;">No files in this department</div>';
 
         openModal(`<h3>${escapeHtml(department.name)}</h3>
         <div style="display:flex;flex-direction:column;gap:24px;max-height:70vh;overflow-y:auto;">
           <div>
-            <div class="small-muted" style="margin-bottom:12px;">Department ID: ${department.department_id}</div>
+            <div class="small-muted" style="margin-bottom:12px;">Department ID: ${
+              department.department_id
+            }</div>
             <div style="display:flex;gap:16px;margin-bottom:16px;">
-              <div class="meta-item"><i class="fa-solid fa-file"></i> ${departmentFiles.length} files</div>
-              <div class="meta-item"><i class="fa-solid fa-user"></i> ${deptUsers.length} members</div>
+              <div class="meta-item"><i class="fa-solid fa-file"></i> ${
+                departmentFiles.length
+              } files</div>
+              <div class="meta-item"><i class="fa-solid fa-user"></i> ${
+                deptUsers.length
+              } members</div>
             </div>
           </div>
           
           <div>
-            <h4 style="margin-bottom:12px;font-size:16px;">Files (${departmentFiles.length})</h4>
+            <h4 style="margin-bottom:12px;font-size:16px;">Files (${
+              departmentFiles.length
+            })</h4>
             <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
               ${filesHtml}
-              ${departmentFiles.length > 10 ? `<div class="small-muted" style="text-align:center;padding:12px;">... and ${departmentFiles.length - 10} more files</div>` : ""}
+              ${
+                departmentFiles.length > 10
+                  ? `<div class="small-muted" style="text-align:center;padding:12px;">... and ${
+                      departmentFiles.length - 10
+                    } more files</div>`
+                  : ""
+              }
             </div>
           </div>
           
           <div>
-            <h4 style="margin-bottom:12px;font-size:16px;">Members (${deptUsers.length})</h4>
+            <h4 style="margin-bottom:12px;font-size:16px;">Members (${
+              deptUsers.length
+            })</h4>
             <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
               ${usersHtml}
             </div>
@@ -9265,11 +9415,20 @@
             <button class="btn-secondary" onclick="closeModal()">
               <i class="fa-solid fa-xmark"></i> Close
             </button>
-            ${(currentUser?.role === "system_admin" || (currentUser?.role === "department_admin" && currentUser.department_id === departmentId)) ? `
-            <button onclick="closeModal(); openEditDepartment(${departmentId}, '${department.name.replace(/'/g, "\\'")}');">
+            ${
+              currentUser?.role === "system_admin" ||
+              (currentUser?.role === "department_admin" &&
+                currentUser.department_id === departmentId)
+                ? `
+            <button onclick="closeModal(); openEditDepartment(${departmentId}, '${department.name.replace(
+                    /'/g,
+                    "\\'"
+                  )}');">
               <i class="fa-solid fa-pen"></i> Edit Department
             </button>
-            ` : ""}
+            `
+                : ""
+            }
           </div>
         </div>`);
       }
@@ -9679,11 +9838,18 @@
                     <button onclick="event.stopPropagation(); openEditCategory(${
                       c.category_id
                     })"><i class="fa-solid fa-pen"></i> Edit</button>
-                    ${currentUser?.role === "system_admin" ? `
+                    ${
+                      currentUser?.role === "system_admin"
+                        ? `
                     <button class="btn-danger" onclick="event.stopPropagation(); deleteCategory(${
                       c.category_id
-                    }, '${c.name.replace(/'/g, "\\'")}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
-                    ` : ""}
+                    }, '${c.name.replace(
+                            /'/g,
+                            "\\'"
+                          )}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                    `
+                        : ""
+                    }
                 </div>
             </div>
             <div class="category-files" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
@@ -9699,11 +9865,11 @@
                             <div class="doc-icon">${fileIcon(f.name)}</div>
                             <div class="doc-info">
                                 <div class="doc-name">${f.name}</div>
-                                <div class="doc-meta">
-                                    ${f.type.toUpperCase()} • 
-                                    ${(f.size / 1024) | 0} KB • 
-                                    ${new Date(f.created_at).toLocaleString()}
-                                </div>
+                                <div class="doc-meta">${
+                                  (f.size / 1024) | 0
+                                } KB • ${new Date(
+                            f.created_at
+                          ).toLocaleDateString()}</div>
                             </div>
                         </div>
                         <div class="doc-actions">
@@ -9814,20 +9980,27 @@
       }
 
       async function deleteCategory(categoryId, categoryName) {
-        if (!confirm(`Are you sure you want to delete category "${categoryName}"? This action cannot be undone.`)) {
+        if (
+          !confirm(
+            `Are you sure you want to delete category "${categoryName}"? This action cannot be undone.`
+          )
+        ) {
           return;
         }
 
         try {
-          const response = await authFetch(`${API_BASE_URL}/categories/${categoryId}`, {
-            method: "DELETE",
-          });
-          
+          const response = await authFetch(
+            `${API_BASE_URL}/categories/${categoryId}`,
+            {
+              method: "DELETE",
+            }
+          );
+
           const result = await response.json();
           if (result && result.success) {
             showToast("Category deleted successfully", "success");
             await renderCategories();
-            
+
             const currentUser = await getCurrentUser();
             if (currentUser) {
               await logActivity({
@@ -10540,27 +10713,37 @@
         const currentUser = currentUserData || (await getCurrentUser());
         const dashboardTitle = document.getElementById("dashboardTitle");
         const dashboardSubtitle = document.getElementById("dashboardSubtitle");
-        
+
         if (currentUser) {
           if (currentUser.role === "staff") {
             // Get department name for staff
             const departments = await getAllDepartments();
-            const dept = departments.find((d) => d.department_id === currentUser.department_id);
+            const dept = departments.find(
+              (d) => d.department_id === currentUser.department_id
+            );
             const deptName = dept ? dept.name : "Your Department";
-            if (dashboardTitle) dashboardTitle.textContent = `${deptName} Dashboard`;
-            if (dashboardSubtitle) dashboardSubtitle.textContent = `Overview of ${deptName} activity and your files`;
+            if (dashboardTitle)
+              dashboardTitle.textContent = `${deptName} Dashboard`;
+            if (dashboardSubtitle)
+              dashboardSubtitle.textContent = `Overview of ${deptName} activity and your files`;
           } else if (currentUser.role === "department_admin") {
             const departments = await getAllDepartments();
-            const dept = departments.find((d) => d.department_id === currentUser.department_id);
+            const dept = departments.find(
+              (d) => d.department_id === currentUser.department_id
+            );
             const deptName = dept ? dept.name : "Department";
-            if (dashboardTitle) dashboardTitle.textContent = `${deptName} Admin Dashboard`;
-            if (dashboardSubtitle) dashboardSubtitle.textContent = `Overview of ${deptName} activity and management`;
+            if (dashboardTitle)
+              dashboardTitle.textContent = `${deptName} Admin Dashboard`;
+            if (dashboardSubtitle)
+              dashboardSubtitle.textContent = `Overview of ${deptName} activity and management`;
           } else {
             if (dashboardTitle) dashboardTitle.textContent = "Admin Dashboard";
-            if (dashboardSubtitle) dashboardSubtitle.textContent = "Overview of system activity and quick actions";
+            if (dashboardSubtitle)
+              dashboardSubtitle.textContent =
+                "Overview of system activity and quick actions";
           }
         }
-        
+
         await refreshStats();
 
         const activities = await getActivities();
@@ -10644,7 +10827,9 @@
           company: company,
           max_file_mb: maxFileMB,
           allowed_types: allowedTypes,
-          company_logo: cachedSettings ? cachedSettings.company_logo : undefined,
+          company_logo: cachedSettings
+            ? cachedSettings.company_logo
+            : undefined,
         });
 
         if (result && result.success) {
@@ -10682,7 +10867,9 @@
           const fullUrl = logoUrl.startsWith("http")
             ? logoUrl
             : `${baseUrl}${logoUrl.startsWith("/") ? "" : "/"}${logoUrl}`;
-          brandLogo.innerHTML = `<img src="${fullUrl}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='${(companyName || "DMS")
+          brandLogo.innerHTML = `<img src="${fullUrl}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='${(
+            companyName || "DMS"
+          )
             .split(" ")
             .map((s) => s[0])
             .slice(0, 2)
@@ -10710,7 +10897,9 @@
           const fullUrl = logoUrl.startsWith("http")
             ? logoUrl
             : `${baseUrl}${logoUrl.startsWith("/") ? "" : "/"}${logoUrl}`;
-          preview.innerHTML = `<img src="${fullUrl}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='${(companyName || "DMS")
+          preview.innerHTML = `<img src="${fullUrl}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.textContent='${(
+            companyName || "DMS"
+          )
             .split(" ")
             .map((s) => s[0])
             .slice(0, 2)
@@ -10746,13 +10935,10 @@
         formData.append("logo", file);
 
         try {
-          const response = await authFetch(
-            `${API_BASE_URL}/settings/logo`,
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
+          const response = await authFetch(`${API_BASE_URL}/settings/logo`, {
+            method: "POST",
+            body: formData,
+          });
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
@@ -10765,7 +10951,9 @@
               applyBrandingFromSettings(fresh);
               updateSettingsLogoPreview(fresh);
               // Keep the file name displayed after successful upload
-              const fileNameLabel = document.getElementById("settingLogoFileName");
+              const fileNameLabel = document.getElementById(
+                "settingLogoFileName"
+              );
               if (fileNameLabel && file) {
                 fileNameLabel.textContent = file.name;
               }
@@ -10874,7 +11062,3 @@
     </script>
   </body>
 </html>
-
-
-
-

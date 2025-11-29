@@ -1786,6 +1786,24 @@
       .current-password-field {
         margin-bottom: 8px;
       }
+    /* Custom file button for System Settings */
+    .custom-file-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: background 0.2s;
+    }
+    .custom-file-btn:hover {
+      background: var(--accent-dark, #0056b3);
+    }
     </style>
 
     <!-- Report export libraries -->
@@ -2287,22 +2305,25 @@
                   >
                     DM
                   </div>
-                  <div style="flex:1;display:flex;align-items:center;gap:8px;">
-                    <input
-                      type="file"
-                      id="settingLogoInput"
-                      accept="image/*"
-                      style="flex:1"
-                      onchange="handleCompanyLogoUpload(event)"
-                    />
-                    <span
-                      id="settingLogoFileName"
-                      class="small-muted"
-                      style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;display:inline-block;"
-                    >
-                      No file chosen
-                    </span>
-                  </div>
+                  <div style="flex:1;display:flex;align-items:center;gap:12px;position:relative;">
+  <input
+    type="file"
+    id="settingLogoInput"
+    accept="image/*"
+    style="opacity:0;position:absolute;left:0;top:0;width:160px;height:40px;cursor:pointer;z-index:2;"
+    onchange="handleCompanyLogoUpload(event)"
+  />
+  <button type="button" class="custom-file-btn" onclick="document.getElementById('settingLogoInput').click();" style="display:flex;align-items:center;gap:8px;padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:background 0.2s;">
+    <i class="fa-solid fa-upload"></i> Upload
+  </button>
+  <span
+    id="settingLogoFileName"
+    class="small-muted"
+    style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;display:inline-block;"
+  >
+    No file chosen
+  </span>
+</div>
                 </div>
               </div>
               <div class="form-row">

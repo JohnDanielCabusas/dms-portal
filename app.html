@@ -78,13 +78,12 @@
         padding: 0 28px;
         border-bottom: 1px solid var(--border);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        z-index: 40;
+        z-index: 1000; /* High but below modals */
         position: sticky;
         top: 0;
         transition: var(--transition);
         backdrop-filter: blur(10px);
       }
-
       .brand {
         display: flex;
         align-items: center;
@@ -684,11 +683,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 999;
+        z-index: 1001; /* Higher than header */
         backdrop-filter: blur(4px);
-        padding: 20px; /* ensure modal doesn't touch viewport edges */
+        padding: 20px;
       }
-
       .modal {
         width: 640px;
         max-width: 96%;
@@ -700,6 +698,8 @@
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         color: var(--text);
         box-sizing: border-box;
+        z-index: 1002; /* Higher than modal background */
+        position: relative;
       }
 
       .modal-large {
@@ -1503,6 +1503,11 @@
         padding: 20px;
         background: var(--card);
         border-radius: 10px;
+        z-index: 1003; /* Highest for file preview */
+      }
+
+      body.modal-open {
+        overflow: hidden;
       }
 
       .file-preview-header {
@@ -2073,15 +2078,45 @@
 
       /* Visual feedback when menu is open on a file */
       .doc-adaptive.has-open-menu {
-        z-index: 1000;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-        border-color: var(--accent);
+        z-index: 999; /* Below modals but above other content */
       }
 
       /* Highlight other files when menu is open */
       .menu-dropdown.show ~ .doc-adaptive:not(.has-open-menu):hover {
         background: var(--accent-light);
         cursor: pointer;
+      }
+
+      /* Fix modal z-index stacking */
+      .modal-back {
+        z-index: 1001 !important; /* Higher than header */
+      }
+
+      .modal {
+        z-index: 1002 !important; /* Higher than modal background */
+      }
+
+      .file-preview-modal {
+        z-index: 1003 !important; /* Highest for file preview */
+      }
+
+      /* Ensure header doesn't interfere with modals */
+      .topbar {
+        z-index: 1000; /* Keep high but lower than modals */
+      }
+
+      /* Fix floating file card z-index */
+      .doc-adaptive.has-open-menu {
+        z-index: 999 !important; /* Below modals but above other content */
+      }
+
+      .menu-dropdown {
+        z-index: 10000 !important; /* Keep dropdowns high */
+      }
+
+      /* Prevent body scroll when modal is open */
+      body.modal-open {
+        overflow: hidden;
       }
     </style>
 
@@ -3200,7 +3235,10 @@
 
       function closeAllMenus() {
         document.querySelectorAll(".menu-dropdown.show").forEach((menu) => {
-          menu.classList.remove("show");
+          // Only close if not inside a modal
+          if (!menu.closest(".modal")) {
+            menu.classList.remove("show");
+          }
         });
 
         // Remove visual marker from file card
@@ -11444,14 +11482,22 @@
         const root = document.getElementById("modalRoot");
         root.innerHTML = `<div class="modal-back" id="modalBG"><div class="modal ${className}">${html}</div></div>`;
         root.style.display = "block";
+
+        // Prevent body scroll when modal is open
+        document.body.classList.add("modal-open");
+
         document.getElementById("modalBG").addEventListener("click", (ev) => {
           if (ev.target.id === "modalBG") closeModal();
         });
       }
 
+      // Update closeModal function
       function closeModal() {
         document.getElementById("modalRoot").innerHTML = "";
         document.getElementById("modalRoot").style.display = "none";
+
+        // Restore body scroll
+        document.body.classList.remove("modal-open");
       }
 
       // Document Classification

@@ -3221,6 +3221,7 @@
       let currentView = "dashboard";
       let sidebarCollapsed = false;
       let currentWorkspaceId = null;
+      let modalWorkspaceContext = null; // Track workspace context when modal is open
       let categoriesSortOrder = "asc";
       let currentUserData = null;
       let cachedSettings = null;
@@ -6139,8 +6140,20 @@ function initSidebarToggle() {
       // Enhanced download function with rename option
       async function downloadFile(fileId) {
         try {
-          const files = await getAllFiles();
-          const file = files.find((f) => f.file_id === fileId);
+          let files = await getAllFiles();
+          let file = files.find((f) => f.file_id === fileId);
+          
+          // If not found in user's library, check workspace files
+          if (!file && currentWorkspaceId) {
+            const workspaceFiles = await getWorkspaceFiles(currentWorkspaceId);
+            file = workspaceFiles.find((f) => f.file_id === fileId);
+          }
+          
+          // Also check modal workspace context (when viewing from workspace modal)
+          if (!file && modalWorkspaceContext?.files) {
+            file = modalWorkspaceContext.files.find((f) => f.file_id === fileId);
+          }
+          
           if (!file) {
             showToast("File not found", "error");
             return;
@@ -6196,8 +6209,20 @@ function initSidebarToggle() {
             return;
           }
 
-          const files = await getAllFiles();
-          const file = files.find((f) => f.file_id === fileId);
+          let files = await getAllFiles();
+          let file = files.find((f) => f.file_id === fileId);
+          
+          // If not found in user's library, check workspace files
+          if (!file && currentWorkspaceId) {
+            const workspaceFiles = await getWorkspaceFiles(currentWorkspaceId);
+            file = workspaceFiles.find((f) => f.file_id === fileId);
+          }
+          
+          // Also check modal workspace context (when viewing from workspace modal)
+          if (!file && modalWorkspaceContext?.files) {
+            file = modalWorkspaceContext.files.find((f) => f.file_id === fileId);
+          }
+          
           if (!file) {
             showToast("File not found", "error");
             closeModal();
@@ -6922,9 +6947,24 @@ function initSidebarToggle() {
 
       // Enhanced file preview with actual file content
       async function openFilePreview(fileId) {
-        const files = await getAllFiles();
-        const file = files.find((f) => f.file_id === fileId);
-        if (!file) return;
+        let files = await getAllFiles();
+        let file = files.find((f) => f.file_id === fileId);
+        
+        // If not found in user's library, check workspace files
+        if (!file && currentWorkspaceId) {
+          const workspaceFiles = await getWorkspaceFiles(currentWorkspaceId);
+          file = workspaceFiles.find((f) => f.file_id === fileId);
+        }
+        
+        // Also check modal workspace context (when viewing from workspace modal)
+        if (!file && modalWorkspaceContext?.files) {
+          file = modalWorkspaceContext.files.find((f) => f.file_id === fileId);
+        }
+        
+        if (!file) {
+          showToast("File not found", "error");
+          return;
+        }
 
         const users = await getAllUsers();
         const owner = users.find((u) => u.user_id === file.user_id) || {
@@ -7760,7 +7800,17 @@ function initSidebarToggle() {
         }
       }
 
+      let isRenderingWorkspaces = false;
+      
       async function renderWorkspaces() {
+        // Prevent duplicate rendering
+        if (isRenderingWorkspaces) {
+          console.log("⚠️ DEBUG: renderWorkspaces already in progress, skipping...");
+          return;
+        }
+        
+        isRenderingWorkspaces = true;
+        
         const list = document.getElementById("workspacesList");
         list.innerHTML = "";
 
@@ -7780,6 +7830,7 @@ function initSidebarToggle() {
         if (!visibleWorkspaces || visibleWorkspaces.length === 0) {
           list.innerHTML =
             '<div class="card small-muted" style="text-align:center;padding:40px">No workspaces yet</div>';
+          isRenderingWorkspaces = false;
           return;
         }
 
@@ -7898,6 +7949,7 @@ function initSidebarToggle() {
         }
 
         console.log("✅ DEBUG: Finished renderWorkspaces");
+        isRenderingWorkspaces = false;
       }
       async function openWorkspace(id) {
         // Open workspace in a modal instead of navigating to workspace-detail view
@@ -7919,6 +7971,13 @@ function initSidebarToggle() {
 
         // Get files and members for this workspace
         const workspaceFiles = await getWorkspaceFiles(id);
+        
+        // Set modal context so file preview/download can access workspace files
+        modalWorkspaceContext = {
+          workspaceId: id,
+          files: workspaceFiles
+        };
+        
         const users = await getAllUsers();
 
         const memberDetails = await Promise.all(
@@ -12102,12 +12161,18 @@ function initSidebarToggle() {
         document.getElementById("modalBG").addEventListener("click", (ev) => {
           if (ev.target.id === "modalBG") closeModal();
         });
+        
+        // Note: modalWorkspaceContext is preserved when transitioning between modals
+        // It's only cleared when closeModal() is explicitly called
       }
 
       // Update closeModal function
       function closeModal() {
         document.getElementById("modalRoot").innerHTML = "";
         document.getElementById("modalRoot").style.display = "none";
+
+        // Clear workspace modal context
+        modalWorkspaceContext = null;
 
         // Restore body scroll
         document.body.classList.remove("modal-open");

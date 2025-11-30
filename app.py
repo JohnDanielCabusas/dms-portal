@@ -482,6 +482,20 @@ def get_user_file_permission(file_record, user):
         if dept_share:
             return dept_share.get('permission', 'viewer')
     
+    # Check if file is in a workspace where user is a member or owner
+    workspace_access = DatabaseConfig.execute_query(
+        """SELECT fw.workspace_id 
+           FROM file_workspaces fw
+           JOIN workspaces w ON fw.workspace_id = w.workspace_id
+           LEFT JOIN workspace_members wm ON fw.workspace_id = wm.workspace_id AND wm.user_id = %s
+           WHERE fw.file_id = %s 
+           AND (w.user_id = %s OR wm.user_id IS NOT NULL)""",
+        (user['user_id'], file_record['file_id'], user['user_id']),
+        fetch_one=True
+    )
+    if workspace_access:
+        return 'viewer'
+    
     return None
 
 # Update the upload-file route

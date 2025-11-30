@@ -1453,20 +1453,33 @@ class DMSDatabase:
     
     @staticmethod
     def delete_user(user_id):
+        """Permanently delete a user and all related records"""
         try:
-            # In a production system, you might want to:
-            # 1. Check if user has any files or dependencies
-            # 2. Use soft delete instead of hard delete
-            # 3. Handle related records in other tables
-            
-            query = "DELETE FROM users WHERE user_id = %s"
             connection = DatabaseConfig.get_connection()
             cursor = connection.cursor()
-            cursor.execute(query, (user_id,))
-            connection.commit()
-            cursor.close()
-            connection.close()
-            return True
+            
+            try:
+                # Delete in order to respect foreign key constraints
+                cursor.execute("DELETE FROM file_shares WHERE shared_by = %s OR shared_with_user_id = %s", (user_id, user_id))
+                cursor.execute("DELETE FROM workspace_members WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM activity_log WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM files WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM workspaces WHERE user_id = %s", (user_id,))
+                cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+                
+                connection.commit()
+                cursor.close()
+                connection.close()
+                return True
+            except Exception as e:
+                connection.rollback()
+                cursor.close()
+                connection.close()
+                print(f"Error deleting user {user_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
         except Exception as e:
             print(f"Error deleting user: {e}")
             return False
@@ -2278,6 +2291,203 @@ Permission level: {permission_label.title()}."""
         print(f"Share email error: {e}")
         return False
 
+def send_new_user_welcome_email(recipient_email, recipient_name, password):
+    """
+    Send a welcome email to a newly created user with their account credentials.
+    """
+    try:
+        smtp_server = "smtp.gmail.com"
+        smtp_port = 587
+        sender_email = "plp.dmshr@gmail.com"
+        sender_password = "thpn ttsr pxcw zchi"
+        
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "Welcome to DMS Portal - Your Account Information"
+        message["From"] = "DOCUMENT MANAGEMENT SYSTEM <plp.dmshr@gmail.com>"
+        message["To"] = recipient_email
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    padding: 40px 20px;
+                    margin: 0;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                    padding: 40px 30px;
+                    text-align: center;
+                    color: white;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 28px;
+                    font-weight: 600;
+                }}
+                .header p {{
+                    margin: 10px 0 0 0;
+                    opacity: 0.9;
+                    font-size: 16px;
+                }}
+                .content {{
+                    padding: 40px 30px;
+                }}
+                .welcome-text {{
+                    color: #334155;
+                    font-size: 16px;
+                    line-height: 1.6;
+                    margin-bottom: 30px;
+                }}
+                .credentials-box {{
+                    background: #f8fafc;
+                    border-left: 4px solid #3b82f6;
+                    padding: 25px;
+                    border-radius: 8px;
+                    margin: 25px 0;
+                }}
+                .credential-row {{
+                    display: flex;
+                    margin: 15px 0;
+                    align-items: center;
+                }}
+                .credential-label {{
+                    font-weight: 600;
+                    color: #64748b;
+                    min-width: 100px;
+                    font-size: 14px;
+                }}
+                .credential-value {{
+                    color: #1e293b;
+                    font-family: 'Courier New', monospace;
+                    font-size: 15px;
+                    font-weight: 600;
+                    background: white;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    border: 1px solid #e2e8f0;
+                }}
+                .password-value {{
+                    color: #3b82f6;
+                    font-size: 20px;
+                    letter-spacing: 3px;
+                }}
+                .important-note {{
+                    background: #fef3c7;
+                    border-left: 4px solid #f59e0b;
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin: 25px 0;
+                }}
+                .important-note p {{
+                    margin: 0;
+                    color: #78350f;
+                    font-size: 14px;
+                    line-height: 1.6;
+                }}
+                .footer {{
+                    background: #f8fafc;
+                    padding: 30px;
+                    text-align: center;
+                    border-top: 1px solid #e2e8f0;
+                }}
+                .footer p {{
+                    margin: 5px 0;
+                    color: #64748b;
+                    font-size: 13px;
+                }}
+                .icon {{
+                    display: inline-block;
+                    font-size: 48px;
+                    margin-bottom: 10px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <div class='icon'>🎉</div>
+                    <h1>Welcome to DMS Portal!</h1>
+                    <p>Your account has been successfully created</p>
+                </div>
+                
+                <div class='content'>
+                    <div class='welcome-text'>
+                        <p>Hello <strong>{recipient_name}</strong>,</p>
+                        <p>Your account has been created in the Document Management System. You can now access the portal using the credentials below:</p>
+                    </div>
+                    
+                    <div class='credentials-box'>
+                        <div class='credential-row'>
+                            <span class='credential-label'>📧 Email:</span>
+                            <span class='credential-value'>{recipient_email}</span>
+                        </div>
+                        <div class='credential-row'>
+                            <span class='credential-label'>🔑 Password:</span>
+                            <span class='credential-value password-value'>{password}</span>
+                        </div>
+                    </div>
+                    
+                    <div class='important-note'>
+                        <p><strong>⚠️ Important Security Note:</strong></p>
+                        <p>This is a temporary password. For security reasons, we strongly recommend changing your password after your first login. You can update your password in your profile settings.</p>
+                    </div>
+                </div>
+                
+                <div class='footer'>
+                    <p><strong>Document Management System</strong></p>
+                    <p>&copy; 2025 DMS Portal. All rights reserved.</p>
+                    <p style='margin-top: 15px; font-size: 12px;'>This is an automated message. Please do not reply to this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""Welcome to DMS Portal!
+
+Hello {recipient_name},
+
+Your account has been created. Here are your login credentials:
+
+Email: {recipient_email}
+Password: {password}
+
+IMPORTANT: Please change your password after your first login for security.
+
+Best regards,
+DMS Portal Team
+"""
+        
+        part1 = MIMEText(text_content, "plain")
+        part2 = MIMEText(html_content, "html")
+        message.attach(part1)
+        message.attach(part2)
+        
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, recipient_email, message.as_string())
+        server.quit()
+        
+        print(f"Succesfully added user. Email sent")
+        return {'success': True, 'message': 'Welcome email sent successfully'}
+        
+    except Exception as e:
+        print(f"❌ Email error: {e}")
+        return {'success': False, 'message': f'Email error: {str(e)}'}
+
 @app.route('/api/debug/user/<int:user_id>', methods=['GET'])
 def debug_user(user_id):
     """Debug endpoint to check user data"""
@@ -2307,12 +2517,33 @@ def get_users():
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
+    import random
+    import string
+    
     data = request.json
+    
+    # Generate a random 6-character password (mix of letters and numbers)
+    password = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+    
     user_id = DMSDatabase.create_user(
-        data['name'], data['email'], data['password'], 
+        data['name'], data['email'], password, 
         data['role'], data['department_id']
     )
-    return jsonify({'user_id': user_id})
+    
+    # Send welcome email with credentials
+    if user_id:
+        email_result = send_new_user_welcome_email(
+            data['email'], 
+            data['name'], 
+            password
+        )
+        
+        if email_result.get('success'):
+            print(f"✅ User created and welcome email sent to {data['email']}")
+        else:
+            print(f"⚠️ User created but email failed: {email_result.get('message')}")
+    
+    return jsonify({'user_id': user_id, 'success': True})
 
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
@@ -3499,29 +3730,66 @@ def get_workspace_files_api(workspace_id):
     
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
-    # In a real application, you might want to soft delete or handle dependencies
-    # For now, we'll do a hard delete
+    """Permanently delete a user and handle all related records"""
     try:
         # First check if user exists
         user = DMSDatabase.get_user_by_id(user_id)
         if not user:
             return jsonify({'error': 'User not found'}), 404
             
-        # You might want to add additional checks here, like:
-        # - Prevent deleting the last admin
-        # - Handle user's files and other dependencies
-        
-        # For demo purposes, we'll do a hard delete
-        query = "DELETE FROM users WHERE user_id = %s"
         connection = DatabaseConfig.get_connection()
         cursor = connection.cursor()
-        cursor.execute(query, (user_id,))
-        connection.commit()
-        cursor.close()
-        connection.close()
         
-        return jsonify({'success': True})
+        try:
+            # Delete in order to respect foreign key constraints
+            
+            # 1. Delete user's file shares (as shared_by or shared_with)
+            cursor.execute("DELETE FROM file_shares WHERE shared_by = %s OR shared_with_user_id = %s", (user_id, user_id))
+            print(f"Deleted file shares for user {user_id}")
+            
+            # 2. Delete user's workspace memberships
+            cursor.execute("DELETE FROM workspace_members WHERE user_id = %s", (user_id,))
+            print(f"Deleted workspace memberships for user {user_id}")
+            
+            # 3. Delete user's sessions
+            cursor.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+            print(f"Deleted sessions for user {user_id}")
+            
+            # 4. Delete user's activity logs
+            cursor.execute("DELETE FROM activity_log WHERE user_id = %s", (user_id,))
+            print(f"Deleted activity logs for user {user_id}")
+            
+            # 5. Delete or reassign user's files (delete them since user is being removed)
+            cursor.execute("DELETE FROM files WHERE user_id = %s", (user_id,))
+            print(f"Deleted files for user {user_id}")
+            
+            # 6. Delete or reassign user's workspaces (delete them)
+            cursor.execute("DELETE FROM workspaces WHERE user_id = %s", (user_id,))
+            print(f"Deleted workspaces for user {user_id}")
+            
+            # 7. Finally, delete the user
+            cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+            print(f"Deleted user {user_id}")
+            
+            connection.commit()
+            cursor.close()
+            connection.close()
+            
+            return jsonify({'success': True, 'message': 'User permanently deleted'})
+            
+        except Exception as e:
+            connection.rollback()
+            cursor.close()
+            connection.close()
+            print(f"Error during user deletion: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
+            
     except Exception as e:
+        print(f"Error deleting user: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Failed to delete user: {str(e)}'}), 500
 
 @app.route('/api/files/<int:file_id>/content', methods=['GET'])

@@ -8442,6 +8442,10 @@ function initSidebarToggle() {
         // Apply filters
         let filteredUsers = uniqueUsers;
 
+        // IMPORTANT: Exclude archived users by default (they belong in Archives tab)
+        // Only show active users in the User Management tab
+        filteredUsers = filteredUsers.filter((u) => u.status === "active");
+
         if (currentUser && currentUser.role === "department_admin") {
           filteredUsers = filteredUsers.filter(
             (u) =>
@@ -9844,19 +9848,16 @@ function initSidebarToggle() {
               <label>Email</label>
               <input id="mu_email" placeholder="Email" type="email"/>
             </div>
-            <div class="form-row">
-              <label>Password</label>
-              <input id="mu_pass" placeholder="Password" type="password"/>
-            </div>
-            <div class="form-row">
-              <label>Confirm Password</label>
-              <input id="mu_pass_confirm" placeholder="Confirm password" type="password"/>
+            <div style="padding:12px;background:var(--accent-light);border-radius:8px;margin:8px 0">
+              <p style="margin:0;font-size:13px;color:var(--text-muted)">
+                <i class="fa-solid fa-info-circle"></i> A temporary password will be automatically generated and sent to the user's email.
+              </p>
             </div>
             ${roleField}
             ${deptField}
             <div style="display:flex;gap:12px;justify-content:flex-end">
               <button class="btn-secondary" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
-              <button onclick="modalAddUser()"><i class="fa-solid fa-check"></i> Save</button>
+              <button onclick="modalAddUser()"><i class="fa-solid fa-paper-plane"></i> Add User</button>
             </div>
           </div>`);
       }
@@ -9865,9 +9866,6 @@ function initSidebarToggle() {
       async function modalAddUser() {
         const name = document.getElementById("mu_name").value.trim();
         const email = document.getElementById("mu_email").value.trim();
-        const password = document.getElementById("mu_pass").value;
-        const passwordConfirm =
-          document.getElementById("mu_pass_confirm").value;
 
         const current = currentUserData || (await getCurrentUser());
         const isDeptAdmin = current && current.role === "department_admin";
@@ -9883,7 +9881,7 @@ function initSidebarToggle() {
           departmentId = document.getElementById("mu_dept").value;
         }
 
-        if (!name || !email || !password || !departmentId) {
+        if (!name || !email || !departmentId) {
           showToast("Please fill all required fields", "error");
           return;
         }
@@ -9893,20 +9891,16 @@ function initSidebarToggle() {
           return;
         }
 
-        if (password !== passwordConfirm) {
-          showToast("Passwords do not match", "error");
-          return;
-        }
-
-        if (password.length < 6) {
-          showToast("Password must be at least 6 characters long", "error");
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          showToast("Please enter a valid email address", "error");
           return;
         }
 
         const userData = {
           name: name,
           email: email,
-          password: password,
           role: role,
           department_id: departmentId ? parseInt(departmentId) : null,
         };
@@ -9918,7 +9912,7 @@ function initSidebarToggle() {
         console.log("DEBUG: Create result:", result);
 
         if (result && (result.user_id || result.success)) {
-          showToast("User created successfully", "success");
+          showToast("User created successfully! Welcome email sent to " + email, "success");
           closeModal();
           await renderUsers();
           await refreshStats();

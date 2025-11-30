@@ -5271,53 +5271,46 @@ function initSidebarToggle() {
           return;
         }
 
+        // Store original file extension for later use
+        window.currentEditingFileExt = fileExt;
+
         // For editable files, open in fullscreen editor
         openModal(
-          `<h3 style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px;justify-content:space-between">
-            <span style="display:flex;align-items:center;gap:8px">
-              <i class="fa-solid fa-edit"></i> Edit "${file.name}"
-            </span>
-            <div style="display:flex;gap:8px;align-items:center">
-              <div id="editorStatus" class="small-muted" style="display:flex;align-items:center;gap:6px">
-                <i class="fa-solid fa-circle" style="font-size:8px;color:var(--success)"></i>
-                <span>Ready</span>
-              </div>
-              <button class="icon-btn" onclick="closeModal()" title="Close">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-          </h3>
-          <div style="display:flex;flex-direction:column;gap:16px;height:calc(90vh - 100px);">
-            ${
-              requiresConversion
-                ? `<div class="small-muted" style="background:var(--accent-light);padding:10px;border-radius:6px">
-              <i class="fa-solid fa-circle-info"></i> This ${fileExt
-                .toUpperCase()
-                .replace(
-                  ".",
-                  ""
-                )} file has been converted to plain text for editing. Formatting will be regenerated when you save.
-            </div>`
-                : ""
-            }
-            <div style="flex:1;display:flex;flex-direction:column;min-height:0">
-              <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
-                <button class="btn-secondary" onclick="saveFileEdit(${fileId})" style="flex-shrink:0">
-                  <i class="fa-solid fa-save"></i> Save Changes
-                </button>
-                <div class="small-muted" style="flex:1;text-align:right">
-                  Collaborative editing enabled - changes are saved automatically
+          `<div style="display:flex;flex-direction:column;height:100%;background:var(--bg);">
+            <div style="background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <i class="fa-solid fa-file-lines" style="font-size:20px;color:var(--accent);"></i>
+                <div>
+                  <div style="font-weight:600;font-size:16px;">${file.name}</div>
+                  <div id="editorStatus" class="small-muted" style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+                    <i class="fa-solid fa-circle" style="font-size:6px;color:var(--success)"></i>
+                    <span>All changes saved</span>
+                  </div>
                 </div>
               </div>
-              <textarea id="fileEditorContent" style="flex:1;min-height:400px;font-family:'Courier New',monospace;font-size:14px;padding:16px;border:1px solid var(--border);border-radius:6px;resize:none;width:100%;box-sizing:border-box">Loading...</textarea>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn-secondary" onclick="saveFileEdit(${fileId})" style="display:flex;align-items:center;gap:6px;">
+                  <i class="fa-solid fa-save"></i> Save
+                </button>
+                <button class="icon-btn" onclick="closeModal()" title="Close" style="font-size:20px;">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
             </div>
-            <div style="display:flex;gap:12px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:12px">
-              <button class="btn-secondary" onclick="closeModal()">
-                <i class="fa-solid fa-xmark"></i> Cancel
-              </button>
-              <button onclick="saveFileEdit(${fileId})" class="btn-primary">
-                <i class="fa-solid fa-save"></i> Save Changes
-              </button>
+            ${
+              requiresConversion
+                ? `<div style="background:#FFF3CD;color:#856404;padding:12px 24px;border-bottom:1px solid #FFEEBA;display:flex;align-items:center;gap:8px;">
+                  <i class="fa-solid fa-circle-exclamation"></i>
+                  <span>This ${fileExt.toUpperCase().replace(".", "")} file will be saved in its original format with the content you edit here.</span>
+                </div>`
+                : ""
+            }
+            <div style="flex:1;overflow:auto;padding:40px;background:var(--bg);">
+              <div style="max-width:900px;margin:0 auto;background:var(--card);box-shadow:0 2px 8px rgba(0,0,0,0.1);border-radius:8px;min-height:calc(100vh - 300px);">
+                <textarea id="fileEditorContent" 
+                  placeholder="Start typing..."
+                  style="width:100%;height:100%;min-height:800px;padding:60px 80px;border:none;font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;font-size:15px;line-height:1.8;color:var(--text);background:transparent;resize:none;outline:none;box-sizing:border-box;">Loading...</textarea>
+              </div>
             </div>
           </div>`,
           "modal-fullscreen"
@@ -5366,11 +5359,11 @@ function initSidebarToggle() {
             // Update status to saved
             if (statusElement) {
               statusElement.innerHTML =
-                '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--success)"></i><span>Saved</span>';
+                '<i class="fa-solid fa-check" style="font-size:10px;color:var(--success)"></i><span>Saved successfully</span>';
               setTimeout(() => {
                 if (statusElement) {
                   statusElement.innerHTML =
-                    '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--success)"></i><span>Ready</span>';
+                    '<i class="fa-solid fa-circle" style="font-size:6px;color:var(--success)"></i><span>All changes saved</span>';
                 }
               }, 2000);
             }
@@ -5379,7 +5372,7 @@ function initSidebarToggle() {
           } else {
             if (statusElement) {
               statusElement.innerHTML =
-                '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--danger)"></i><span>Error</span>';
+                '<i class="fa-solid fa-circle-exclamation" style="font-size:10px;color:var(--danger)"></i><span>Failed to save</span>';
             }
             showToast(result?.error || "Failed to save file", "error");
           }
@@ -5387,7 +5380,7 @@ function initSidebarToggle() {
           console.error("Error saving file:", error);
           if (statusElement) {
             statusElement.innerHTML =
-              '<i class="fa-solid fa-circle" style="font-size:8px;color:var(--danger)"></i><span>Error</span>';
+              '<i class="fa-solid fa-circle-exclamation" style="font-size:10px;color:var(--danger)"></i><span>Failed to save</span>';
           }
           showToast("Failed to save file. Please try again.", "error");
         }

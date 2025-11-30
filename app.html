@@ -3596,9 +3596,27 @@ function initSidebarToggle() {
 
     
       function logout() {
-        if (confirm("Are you sure you want to logout?")) {
-          clearSession();
-        }
+        openModal(`
+          <div style="display: flex; flex-direction: column; align-items: center; padding: 15px;">
+            <h3 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 600; color: var(--text);">Sign out</h3>
+            <p style="color: var(--text-muted); margin: 0 0 32px 0; font-size: 15px; text-align: center; max-width: 360px; line-height: 1.6;">
+              Are you sure you want to logout?
+            </p>
+            <div style="display: flex; gap: 12px; width: 100%; max-width: 320px;">
+              <button class="btn-secondary" onclick="closeModal()" style="flex: 1; padding: 12px 24px; font-weight: 500;">
+                <i class="fa-solid fa-xmark"></i> Cancel
+              </button>
+              <button onclick="confirmLogout()" style="flex: 1; padding: 12px 24px; background: var(--danger); border: none; font-weight: 500;">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+              </button>
+            </div>
+          </div>
+        `);
+      }
+      
+      function confirmLogout() {
+        closeModal();
+        clearSession();
       }
 
       function updateTopUser(user) {

@@ -854,7 +854,12 @@
         display: none;
       }
 
+      /* Update the mobile toggle button visibility */
       @media (max-width: 991px) {
+        .mobile-toggle {
+          display: flex !important;
+        }
+
         .sidebar {
           position: fixed;
           top: 70px;
@@ -862,6 +867,7 @@
           height: calc(100% - 70px);
           transform: translateX(-100%);
           z-index: 100;
+          width: 260px !important; /* Ensure consistent width */
         }
 
         .sidebar.active {
@@ -877,27 +883,41 @@
           min-width: 180px;
         }
       }
-      /* Enhanced checkbox styling */
-      .checkbox-option:hover {
-        background: var(--accent-light);
-        border-color: var(--accent);
+
+      /* Add this new media query for intermediate screen sizes */
+      @media (min-width: 768px) and (max-width: 991px) {
+        .sidebar:not(.active) ~ .main {
+          width: 100%;
+        }
+
+        .sidebar.active ~ .main {
+          margin-left: 0;
+          width: 100%;
+        }
+
+        /* Hide the mobile toggle when sidebar is open on intermediate screens */
+        .sidebar.active ~ .topbar .mobile-toggle {
+          display: none;
+        }
       }
 
-      .checkbox-option input[type="checkbox"] {
-        accent-color: var(--accent);
-      }
-
-      .checkbox-option input[type="checkbox"]:checked + label {
-        color: var(--accent);
-      }
-
-      /* Desktop behavior */
+      /* Ensure mobile toggle is hidden on desktop */
       @media (min-width: 992px) {
+        .mobile-toggle {
+          display: none !important;
+        }
+
+        .sidebar {
+          display: flex !important;
+          transform: translateX(0) !important;
+          position: static !important;
+          height: auto !important;
+        }
+
         .overlay {
           display: none !important;
         }
       }
-
       /* Form elements */
       .form-row {
         display: flex;
@@ -1803,6 +1823,265 @@
       }
       .custom-file-btn:hover {
         background: var(--accent-dark, #0056b3);
+      }
+      /* Three-dot menu styles */
+      .doc-actions {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 4px !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        margin-left: auto !important;
+        flex-wrap: nowrap !important;
+        white-space: nowrap !important;
+      }
+      /* Style for ALL action buttons (rename, download, menu) */
+      .doc-actions .icon-btn,
+      .doc-actions .menu-toggle {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 6px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        transition: all 0.2s ease;
+        color: var(--text-muted);
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+        flex-shrink: 0; /* Prevent shrinking */
+      }
+
+      /* Remove border from menu-toggle only */
+      .doc-actions .menu-toggle {
+        border: none;
+      }
+
+      /* Hover effects for all buttons */
+      .doc-actions .icon-btn:hover,
+      .doc-actions .menu-toggle:hover {
+        background-color: #f8fafc;
+        border-color: #cbd5e1;
+        color: #334155;
+      }
+
+      .doc-actions .menu-toggle:hover {
+        border: none; /* Keep no border on hover */
+      }
+
+      .doc-actions .icon-btn:active,
+      .doc-actions .menu-toggle:active {
+        transform: scale(0.98);
+      }
+
+      /* Menu dropdown styles */
+      .menu-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1),
+          0 4px 6px rgba(0, 0, 0, 0.05);
+        min-width: 220px;
+        z-index: 10000; /* Keep this high value */
+        display: none;
+        padding: 6px 0;
+        margin-top: 4px;
+        animation: dropdownFadeIn 0.15s ease-out;
+        isolation: isolate; /* Creates new stacking context */
+        transform: translateZ(0); /* Force hardware acceleration */
+      }
+
+      .menu-dropdown.show {
+        display: block;
+      }
+
+      /* Dark mode support */
+      .dark-mode .doc-actions .icon-btn,
+      .dark-mode .doc-actions .menu-toggle {
+        background: var(--card);
+        border-color: var(--border);
+        color: var(--text-muted);
+      }
+
+      .dark-mode .doc-actions .icon-btn:hover,
+      .dark-mode .doc-actions .menu-toggle:hover {
+        background-color: var(--accent-light);
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .dark-mode .menu-dropdown {
+        background: var(--card);
+        border-color: var(--border);
+      }
+      @keyframes dropdownFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .menu-dropdown.show {
+        display: block;
+      }
+
+      .menu-item {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        padding: 10px 16px;
+        border: none;
+        background: none;
+        text-align: left;
+        cursor: pointer;
+        font-size: 14px;
+        color: #374151;
+        transition: all 0.15s ease;
+        gap: 12px;
+      }
+
+      .menu-item:hover {
+        background-color: #f1f5f9;
+        color: #1e293b;
+      }
+
+      .menu-item:hover i {
+        color: #3b82f6;
+      }
+
+      .menu-item i {
+        color: #64748b;
+        width: 16px;
+        text-align: center;
+        font-size: 13px;
+        transition: color 0.15s ease;
+      }
+
+      .menu-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .menu-item.disabled:hover {
+        background-color: transparent;
+        color: #374151;
+      }
+
+      .menu-item.destructive {
+        color: #dc2626;
+      }
+
+      .menu-item.destructive:hover {
+        background-color: #fef2f2;
+        color: #b91c1c;
+      }
+
+      .menu-item.destructive i {
+        color: #dc2626;
+      }
+
+      .menu-divider {
+        height: 1px;
+        background-color: #f1f5f9;
+        margin: 6px 0;
+      }
+
+      .menu-header {
+        padding: 8px 16px 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* Dark mode support */
+      .dark-mode .menu-dropdown {
+        background: var(--card);
+        border-color: var(--border);
+        box-shadow: var(--shadow);
+      }
+
+      .dark-mode .menu-item {
+        color: var(--text);
+      }
+
+      .dark-mode .menu-item:hover {
+        background-color: var(--accent-light);
+        color: var(--accent);
+      }
+
+      .dark-mode .menu-divider {
+        background-color: var(--border);
+      }
+
+      .dark-mode .menu-header {
+        color: var(--text-muted);
+      }
+      /* Ensure proper z-index stacking order */
+      .topbar {
+        z-index: 1000;
+      }
+
+      .sidebar {
+        z-index: 999;
+      }
+
+      .overlay {
+        z-index: 998;
+      }
+
+      .mobile-toggle {
+        z-index: 1001;
+      }
+
+      .doc-adaptive {
+        position: relative;
+        /* Ensure it doesn't create a new stacking context */
+        z-index: auto;
+      }
+
+      .doc-actions {
+        position: relative;
+        display: inline-block;
+        z-index: 100; /* Keep this for the actions container */
+        /* Add isolation to create a stacking context just for the dropdown */
+        isolation: isolate;
+      }
+      .grid .doc-adaptive {
+        position: relative;
+        z-index: auto; /* Reset z-index for grid items */
+      }
+
+      .grid .doc-adaptive:hover {
+        z-index: 1000; /* Increase on hover to ensure dropdown appears above siblings */
+      }
+
+      /* Add smooth transition for file cards */
+      .doc-adaptive {
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      /* Visual feedback when menu is open on a file */
+      .doc-adaptive.has-open-menu {
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        border-color: var(--accent);
+      }
+
+      /* Highlight other files when menu is open */
+      .menu-dropdown.show ~ .doc-adaptive:not(.has-open-menu):hover {
+        background: var(--accent-light);
+        cursor: pointer;
       }
     </style>
 
@@ -2837,6 +3116,148 @@
         });
       }
 
+      // Complete solution with visual feedback
+      let currentMenuHandler = null;
+      let hoverTimeout = null;
+      let currentMenuCard = null;
+
+      function toggleMenu(button) {
+        const dropdown = button.nextElementSibling;
+        const isShowing = dropdown.classList.contains("show");
+        const fileCard = button.closest(".doc-adaptive");
+
+        // Close all other open menus first
+        closeAllMenus();
+
+        // Toggle current menu if it wasn't already showing
+        if (!isShowing) {
+          dropdown.classList.add("show");
+          positionDropdown(dropdown);
+
+          // Mark the current file card
+          if (fileCard) {
+            fileCard.classList.add("has-open-menu");
+            currentMenuCard = fileCard;
+          }
+
+          // Remove any existing handler
+          if (currentMenuHandler) {
+            document.removeEventListener("click", currentMenuHandler);
+          }
+
+          // Create new handler for this menu
+          currentMenuHandler = function (event) {
+            if (
+              !dropdown.contains(event.target) &&
+              !button.contains(event.target)
+            ) {
+              closeAllMenus();
+            }
+          };
+
+          // Add the event listener with a small delay
+          setTimeout(() => {
+            document.addEventListener("click", currentMenuHandler);
+          }, 0);
+
+          // Add hover listeners to other file cards
+          addHoverCloseListeners(dropdown, button);
+        }
+      }
+
+      function addHoverCloseListeners(currentDropdown, currentButton) {
+        const allFileCards = document.querySelectorAll(".doc-adaptive");
+
+        allFileCards.forEach((card) => {
+          // Skip the current file card that has the open menu
+          if (card.contains(currentButton)) return;
+
+          card.addEventListener("mouseenter", handleHoverClose);
+          card.addEventListener("mouseleave", handleHoverCancel);
+        });
+      }
+
+      function handleHoverClose(event) {
+        // Clear any existing timeout
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+
+        // Close menu after a short delay when hovering another file
+        hoverTimeout = setTimeout(() => {
+          closeAllMenus();
+        }, 200); // 200ms delay for smooth UX
+      }
+
+      function handleHoverCancel(event) {
+        // Cancel the close timeout if mouse leaves before delay
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+      }
+
+      function closeAllMenus() {
+        document.querySelectorAll(".menu-dropdown.show").forEach((menu) => {
+          menu.classList.remove("show");
+        });
+
+        // Remove visual marker from file card
+        if (currentMenuCard) {
+          currentMenuCard.classList.remove("has-open-menu");
+          currentMenuCard = null;
+        }
+
+        // Remove the click handler
+        if (currentMenuHandler) {
+          document.removeEventListener("click", currentMenuHandler);
+          currentMenuHandler = null;
+        }
+
+        // Clear hover timeout
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+
+        // Remove all hover listeners
+        removeHoverCloseListeners();
+      }
+
+      function removeHoverCloseListeners() {
+        const allFileCards = document.querySelectorAll(".doc-adaptive");
+
+        allFileCards.forEach((card) => {
+          card.removeEventListener("mouseenter", handleHoverClose);
+          card.removeEventListener("mouseleave", handleHoverCancel);
+        });
+      }
+
+      function positionDropdown(dropdown) {
+        const rect = dropdown.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+
+        if (rect.bottom > viewportHeight - 10) {
+          dropdown.style.top = "auto";
+          dropdown.style.bottom = "100%";
+          dropdown.style.marginTop = "0";
+          dropdown.style.marginBottom = "4px";
+        } else {
+          dropdown.style.top = "100%";
+          dropdown.style.bottom = "auto";
+          dropdown.style.marginTop = "4px";
+          dropdown.style.marginBottom = "0";
+        }
+      }
+
+      // Close on Escape key
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          closeAllMenus();
+        }
+      });
+
       // Initialize application
       async function init() {
         if (!checkAuth()) return;
@@ -2891,11 +3312,18 @@
         const overlay = document.getElementById("overlay");
         const main = document.getElementById("main");
 
-        menuToggle.addEventListener("click", () => {
+        function handleSidebarToggle() {
           if (window.innerWidth < 992) {
+            // Mobile and tablet behavior
             sidebar.classList.toggle("active");
             overlay.classList.toggle("active");
+
+            // Prevent body scroll when sidebar is open
+            document.body.style.overflow = sidebar.classList.contains("active")
+              ? "hidden"
+              : "";
           } else {
+            // Desktop behavior - collapse/expand sidebar
             sidebarCollapsed = !sidebarCollapsed;
             if (sidebarCollapsed) {
               sidebar.classList.add("collapsed");
@@ -2903,14 +3331,37 @@
               sidebar.classList.remove("collapsed");
             }
           }
-        });
+        }
+
+        menuToggle.addEventListener("click", handleSidebarToggle);
 
         overlay.addEventListener("click", () => {
           sidebar.classList.remove("active");
           overlay.classList.remove("active");
+          document.body.style.overflow = ""; // Restore scrolling
+        });
+
+        // Close sidebar when clicking on a nav item on mobile
+        document.querySelectorAll(".nav-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            if (window.innerWidth < 992) {
+              sidebar.classList.remove("active");
+              overlay.classList.remove("active");
+              document.body.style.overflow = ""; // Restore scrolling
+            }
+          });
+        });
+
+        // Handle window resize
+        window.addEventListener("resize", () => {
+          if (window.innerWidth >= 992) {
+            // Desktop - ensure sidebar is visible and reset mobile state
+            sidebar.classList.remove("active");
+            overlay.classList.remove("active");
+            document.body.style.overflow = ""; // Restore scrolling
+          }
         });
       }
-
       function logout() {
         if (confirm("Are you sure you want to logout?")) {
           clearSession();
@@ -5587,56 +6038,76 @@
                         }
                     </div>
                 </div>
-                <div class="doc-actions">
-                    ${
-                      canEdit
-                        ? `
-                    <button class="icon-btn" title="Edit Online" onclick="event.stopPropagation(); openFileEditor(${f.file_id})">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </button>`
-                        : ""
-                    }
-                    ${
-                      canRename
-                        ? `
-                    <button class="icon-btn" title="Rename" onclick="event.stopPropagation(); startRenameFileFromButton(${f.file_id})">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>`
-                        : ""
-                    }
-                    <button class="icon-btn" ${
-                      canManageShare
-                        ? ""
-                        : 'style="opacity:0.4;cursor:not-allowed"'
-                    } ${
-              canManageShare
-                ? `onclick="event.stopPropagation(); openFileShareModal(${f.file_id})"`
-                : 'onclick="event.stopPropagation();"'
-            } title="${
-              canManageShare ? "Manage Sharing" : "Shared access (view only)"
+ <div class="doc-actions">
+  <!-- Rename button (conditionally shown) -->
+  ${
+    canRename
+      ? `
+    <button class="icon-btn" onclick="event.stopPropagation(); startRenameFileFromButton(${f.file_id})" title="Rename">
+      <i class="fa-solid fa-pen"></i>
+    </button>
+  `
+      : ""
+  }
+  
+  <!-- Download button -->
+  <button class="icon-btn" onclick="event.stopPropagation(); downloadFile(${
+    f.file_id
+  })" title="Download">
+    <i class="fa-solid fa-download"></i>
+  </button>
+  
+  <!-- Menu toggle -->
+  <button class="menu-toggle" onclick="event.stopPropagation(); toggleMenu(this)" title="More actions">
+    <i class="fa-solid fa-ellipsis-v"></i>
+  </button>
+  
+  <div class="menu-dropdown">
+    <!-- Your dropdown menu items here -->
+    ${
+      canEdit
+        ? `
+      <button class="menu-item" onclick="event.stopPropagation(); openFileEditor(${f.file_id})">
+          <i class="fa-solid fa-pen-to-square"></i>
+          <span>Edit Online</span>
+      </button>`
+        : ""
+    }
+        <div class="menu-divider"></div>
+        
+        <div class="menu-header">Sharing & Export</div>
+        
+        <button class="menu-item ${canManageShare ? "" : "disabled"}" 
+            onclick="event.stopPropagation(); ${
+              canManageShare ? `openFileShareModal(${f.file_id})` : ""
             }">
-                        ${
-                          f.shared
-                            ? '<i class="fa-solid fa-user-group"></i>'
-                            : '<i class="fa-solid fa-share-nodes"></i>'
-                        }
-                    </button>
-                    <button class="icon-btn" onclick="event.stopPropagation(); downloadFile(${
-                      f.file_id
-                    })">
-                        <i class="fa-solid fa-download"></i>
-                    </button>
-                    <button class="icon-btn" title="Manage Workspaces" onclick="event.stopPropagation(); openAddToWorkspaceModal(${
-                      f.file_id
-                    })">
-                        <i class="fa-solid fa-layer-group"></i>
-                    </button>
-                    <button class="icon-btn" title="Archive" onclick="event.stopPropagation(); moveToArchive(${
-                      f.file_id
-                    })">
-                        <i class="fa-solid fa-box-archive"></i>
-                    </button>
-                </div>
+            <i class="fa-solid ${
+              f.shared ? "fa-user-group" : "fa-share-nodes"
+            }"></i>
+            <span>${
+              canManageShare ? "Manage Sharing" : "Shared (view only)"
+            }</span>
+        </button>
+        
+        <button class="menu-item" onclick="event.stopPropagation(); openAddToWorkspaceModal(${
+          f.file_id
+        })">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Add to Workspace</span>
+        </button>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="menu-header">File Management</div>
+        
+        <button class="menu-item destructive" onclick="event.stopPropagation(); moveToArchive(${
+          f.file_id
+        })">
+            <i class="fa-solid fa-box-archive"></i>
+            <span>Archive</span>
+        </button>
+    </div>
+</div>
             `;
             grid.appendChild(div);
           }

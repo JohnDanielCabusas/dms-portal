@@ -245,12 +245,22 @@
                
                 <div class="mb-4">
                     <label for="newPassword" class="block text-sm text-gray-500 mb-2">New Password</label>
-                    <input id="newPassword" type="password" placeholder="Enter new password" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                    <div class="relative">
+                        <input id="newPassword" type="password" placeholder="Enter new password" class="w-full px-4 py-3 pr-10 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                        <button type="button" onclick="toggleResetPasswordVisibility('newPassword', 'newPasswordIcon')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none z-10">
+                            <i id="newPasswordIcon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                
                 <div class="mb-6">
                     <label for="confirmPassword" class="block text-sm text-gray-500 mb-2">Confirm Password</label>
-                    <input id="confirmPassword" type="password" placeholder="Confirm new password" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                    <div class="relative">
+                        <input id="confirmPassword" type="password" placeholder="Confirm new password" class="w-full px-4 py-3 pr-10 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors">
+                        <button type="button" onclick="toggleResetPasswordVisibility('confirmPassword', 'confirmPasswordIcon')" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none z-10">
+                            <i id="confirmPasswordIcon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                
                 <button onclick="doResetPassword()" class="w-full py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
@@ -365,6 +375,22 @@
             // Ensure button has exactly one icon
             if (icons.length === 0) {
                 toggleBtn.innerHTML = '<i id="passwordIcon" class="fa-solid fa-eye"></i>';
+            }
+        }
+    }
+    
+    // Toggle password visibility for reset password fields
+    function toggleResetPasswordVisibility(inputId, iconId) {
+        const passwordInput = document.getElementById(inputId);
+        const passwordIcon = document.getElementById(iconId);
+        
+        if (passwordInput && passwordIcon) {
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                passwordIcon.className = "fa-solid fa-eye-slash";
+            } else {
+                passwordInput.type = "password";
+                passwordIcon.className = "fa-solid fa-eye";
             }
         }
     }
@@ -549,6 +575,10 @@ function startTimer() {
 }
 
 
+    // Global variables for password reset
+    let currentResetEmail = '';
+    let currentResetCode = '';
+
     async function sendResetCode(){
     const email = document.getElementById('forgotEmail').value.trim();
     if (!email) {
@@ -556,28 +586,42 @@ function startTimer() {
         return;
     }
 
+    // Show loading state
+    const sendBtn = event.target;
+    const originalHTML = sendBtn.innerHTML;
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Code...';
 
-    // Check if user exists
-    const users = await apiCall('/users');
-    if (!users) {
-        showToast('Cannot connect to server', 'error');
-        return;
-    }
+    try {
+        // Check if user exists
+        const users = await apiCall('/users');
+        if (!users) {
+            showToast('Cannot connect to server', 'error');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalHTML;
+            return;
+        }
 
 
-    const user = users.find(u => u.email === email);
-   
-    if (!user) {
-        showToast('No account found with that email', 'error');
-        return;
-    }
+        const user = users.find(u => u.email === email);
+       
+        if (!user) {
+            showToast('No account found with that email', 'error');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = originalHTML;
+            return;
+        }
 
 
-    // Generate a 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-   
-    // Send email via PHP
-    const emailResult = await apiCall('/send-reset-email', {
+        // Generate a 6-digit code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Store for verification
+        currentResetEmail = email;
+        currentResetCode = code;
+       
+        // Send email via PHP
+        const emailResult = await apiCall('/send-reset-email', {
         method: 'POST',
         body: {
             email: email,
@@ -594,20 +638,29 @@ function startTimer() {
     }
 
 
-    // Store reset code in database
-    await apiCall('/reset-codes', {
-        method: 'POST',
-        body: {
-            email: email,
-            code: code
-        }
-    });
+        // Store reset code in database
+        await apiCall('/reset-codes', {
+            method: 'POST',
+            body: {
+                email: email,
+                code: code
+            }
+        });
 
 
-    // Show verification view and start timer
-    document.getElementById('forgotView').classList.add('hidden');
-    document.getElementById('resetCodeView').classList.remove('hidden');
-    startTimer();
+        // Show verification view and start timer
+        document.getElementById('forgotView').classList.add('hidden');
+        document.getElementById('resetCodeView').classList.remove('hidden');
+        startTimer();
+        
+        // Reset button state
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalHTML;
+    } catch (error) {
+        showToast('An error occurred. Please try again.', 'error');
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalHTML;
+    }
    
     // Clear input fields
     document.getElementById('code1').value = '';
@@ -644,8 +697,23 @@ function startTimer() {
             showToast('Please enter the complete 6-digit code', 'error');
             return;
         }
-           
-     
+        
+        // Verify the code matches
+        if (enteredCode !== currentResetCode) {
+            showToast('Invalid verification code. Please check and try again.', 'error');
+            // Clear the input fields
+            document.getElementById('code1').value = '';
+            document.getElementById('code2').value = '';
+            document.getElementById('code3').value = '';
+            document.getElementById('code4').value = '';
+            document.getElementById('code5').value = '';
+            document.getElementById('code6').value = '';
+            document.getElementById('code1').focus();
+            return;
+        }
+        
+        // Code is correct, proceed to password reset
+        showToast('Code verified successfully!', 'success');
         document.getElementById('resetCodeView').classList.add('hidden');
         document.getElementById('newPasswordView').classList.remove('hidden');
     }
@@ -670,7 +738,14 @@ async function doResetPassword(){
         return;
     }
    
-    const email = document.getElementById('forgotEmail').value.trim();
+    // Use the stored email from verification
+    const email = currentResetEmail;
+    if (!email) {
+        showToast('Session expired. Please start over.', 'error');
+        showLogin();
+        return;
+    }
+    
     const users = await apiCall('/users');
    
     if (!users) {

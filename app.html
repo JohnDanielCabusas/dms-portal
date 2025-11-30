@@ -2196,6 +2196,19 @@
       body.modal-open {
         overflow: hidden;
       }
+
+      /* Hide browser's default password reveal icon */
+      input[type="password"]::-ms-reveal,
+      input[type="password"]::-ms-clear {
+        display: none;
+      }
+     
+      input[type="password"]::-webkit-credentials-auto-fill-button,
+      input[type="password"]::-webkit-contacts-auto-fill-button {
+        visibility: hidden;
+        position: absolute;
+        right: 0;
+      }
     </style>
 
     <!-- Report export libraries -->
@@ -2874,27 +2887,45 @@
             <div class="password-fields">
               <div class="form-row current-password-field">
                 <label>Current Password</label>
-                <input
-                  type="password"
-                  id="currentPasswordInput"
-                  placeholder="Enter current password"
-                />
+                <div style="position: relative;">
+                  <input
+                    type="password"
+                    id="currentPasswordInput"
+                    placeholder="Enter current password"
+                    style="padding-right: 40px;"
+                  />
+                  <button type="button" onclick="toggleUserSettingsPassword('currentPasswordInput', 'currentPasswordIcon')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 5px;">
+                    <i id="currentPasswordIcon" class="fa-solid fa-eye"></i>
+                  </button>
+                </div>
               </div>
               <div class="form-row">
                 <label>New Password</label>
-                <input
-                  type="password"
-                  id="newPasswordInput"
-                  placeholder="Enter new password"
-                />
+                <div style="position: relative;">
+                  <input
+                    type="password"
+                    id="newPasswordInput"
+                    placeholder="Enter new password"
+                    style="padding-right: 40px;"
+                  />
+                  <button type="button" onclick="toggleUserSettingsPassword('newPasswordInput', 'newPasswordIcon')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 5px;">
+                    <i id="newPasswordIcon" class="fa-solid fa-eye"></i>
+                  </button>
+                </div>
               </div>
               <div class="form-row">
                 <label>Confirm New Password</label>
-                <input
-                  type="password"
-                  id="confirmPasswordInput"
-                  placeholder="Confirm new password"
-                />
+                <div style="position: relative;">
+                  <input
+                    type="password"
+                    id="confirmPasswordInput"
+                    placeholder="Confirm new password"
+                    style="padding-right: 40px;"
+                  />
+                  <button type="button" onclick="toggleUserSettingsPassword('confirmPasswordInput', 'confirmPasswordIcon')" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 5px;">
+                    <i id="confirmPasswordIcon" class="fa-solid fa-eye"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3667,6 +3698,22 @@ function initSidebarToggle() {
       // User Settings Modal Functions
       let originalProfileImage = null;
       let tempProfileImage = null;
+
+      // Toggle password visibility for User Settings modal
+      function toggleUserSettingsPassword(inputId, iconId) {
+        const passwordInput = document.getElementById(inputId);
+        const passwordIcon = document.getElementById(iconId);
+        
+        if (passwordInput && passwordIcon) {
+          if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            passwordIcon.className = "fa-solid fa-eye-slash";
+          } else {
+            passwordInput.type = "password";
+            passwordIcon.className = "fa-solid fa-eye";
+          }
+        }
+      }
 
       function openUserSettings() {
         getCurrentUser().then((user) => {

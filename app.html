@@ -6200,7 +6200,7 @@ function initSidebarToggle() {
           return;
         }
 
-        const fileName = file.original_name || file.name;
+        const fileName = file.name || file.original_name;
 
         openModal(`<h3>Archive File</h3>
               <div style="display:flex;flex-direction:column;gap:16px">
@@ -6778,7 +6778,7 @@ function initSidebarToggle() {
               await logActivity({
                 user_id: currentUser.user_id,
                 activity: `Updated workspaces for "${
-                  file.original_name || file.name
+                  file.name || file.original_name
                 }"`,
               });
             }
@@ -6899,7 +6899,7 @@ function initSidebarToggle() {
               const blob = await response.blob();
               const imageUrl = URL.createObjectURL(blob);
               previewContent = `<img src="${imageUrl}" alt="${
-                file.original_name || file.name
+                file.name || file.original_name
               }" style="max-width:100%; max-height:400px; border-radius:8px;">`;
               previewType = "image";
             } else if (contentType.startsWith("application/pdf")) {
@@ -6926,7 +6926,7 @@ function initSidebarToggle() {
           } else {
             previewContent = `<div class="small-muted" style="text-align:center;padding:40px">
                       Preview not available for this file.<br><br>
-                      File: ${file.original_name || file.name}<br>
+                      File: ${file.name || file.original_name}<br>
                       Type: ${file.type.toUpperCase()}<br>
                       Size: ${(file.size / 1024) | 0} KB
                   </div>`;
@@ -6944,10 +6944,10 @@ function initSidebarToggle() {
               <div class="file-preview-header">
                 <div style="display:flex;align-items:center;gap:12px">
                   <div class="file-preview-icon">${fileIcon(
-                    file.original_name || file.name
+                    file.name || file.original_name
                   )}</div>
                   <div>
-                    <h3 style="margin:0">${file.original_name || file.name}</h3>
+                    <h3 style="margin:0">${file.name || file.original_name}</h3>
                     <div class="small-muted">${file.type.toUpperCase()} • ${
             (file.size / 1024) | 0
           } KB</div>
@@ -7019,7 +7019,7 @@ function initSidebarToggle() {
                 <!-- Rename button - visible only to editors -->
                 <button class="btn-secondary" onclick="openRenameFromPreview(${
                   file.file_id
-                }, '${(file.original_name || file.name).replace(
+                }, '${(file.name || file.original_name).replace(
                         /'/g,
                         "\\'"
                       )}')">
@@ -8165,8 +8165,7 @@ function initSidebarToggle() {
         if (searchTerm) {
           filteredFiles = workspaceFiles.filter(
             (f) =>
-              (f.name || "").toLowerCase().includes(searchTerm) ||
-              (f.original_name || "").toLowerCase().includes(searchTerm)
+              (f.name || f.original_name || "").toLowerCase().includes(searchTerm)
           );
         }
 
@@ -11600,7 +11599,7 @@ function initSidebarToggle() {
                   </div>
                   <div class="small-muted">
                       Are you sure you want to permanently delete <strong>"${
-                        file.original_name || file.name
+                        file.name || file.original_name
                       }"</strong>?
                   </div>
                   <div style="display:flex;gap:12px;justify-content:flex-end">
@@ -11628,7 +11627,7 @@ function initSidebarToggle() {
             await logActivity({
               user_id: currentUser.user_id,
               activity: `Permanently deleted ${
-                file.original_name || file.name
+                file.name || file.original_name
               }`,
             });
           }

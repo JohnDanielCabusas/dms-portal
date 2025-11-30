@@ -3707,8 +3707,26 @@ def update_workspace(workspace_id):
     
 @app.route('/api/workspaces/<int:workspace_id>', methods=['DELETE'])
 def delete_workspace(workspace_id):
-    # Delete workspace logic would go here
-    return jsonify({'success': True})
+    """Delete a workspace and all its associations"""
+    try:
+        # First, delete file-workspace associations
+        delete_files_query = "DELETE FROM file_workspaces WHERE workspace_id = %s"
+        DatabaseConfig.execute_query(delete_files_query, (workspace_id,))
+        
+        # Then delete workspace members
+        delete_members_query = "DELETE FROM workspace_members WHERE workspace_id = %s"
+        DatabaseConfig.execute_query(delete_members_query, (workspace_id,))
+        
+        # Finally delete the workspace itself
+        delete_workspace_query = "DELETE FROM workspaces WHERE workspace_id = %s"
+        DatabaseConfig.execute_query(delete_workspace_query, (workspace_id,))
+        
+        # If we reach here without exception, deletion was successful
+        return jsonify({'success': True, 'message': 'Workspace deleted successfully'})
+            
+    except Exception as e:
+        print(f"Error deleting workspace: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/files/<int:file_id>/add-to-workspace', methods=['POST'])
 def add_file_to_workspace_api(file_id):

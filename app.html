@@ -7723,20 +7723,22 @@ function initSidebarToggle() {
           closeModal();
           showToast("Deleting workspace...", "info");
 
+          // Get workspace info BEFORE deletion for logging
+          const workspaces = await getAllWorkspaces();
+          const workspace = workspaces.find(
+            (w) => w.workspace_id == workspaceId
+          );
+          const workspaceName = workspace ? workspace.name : "Unknown";
+
           const result = await deleteWorkspaceAPI(workspaceId);
           if (result && result.success) {
             showToast("Workspace deleted successfully", "success");
 
             const currentUser = await getCurrentUser();
-            const workspaces = await getAllWorkspaces();
-            const workspace = workspaces.find(
-              (w) => w.workspace_id == workspaceId
-            );
-
-            if (currentUser && workspace) {
+            if (currentUser) {
               await logActivity({
                 user_id: currentUser.user_id,
-                activity: `Deleted workspace: ${workspace.name}`,
+                activity: `Deleted workspace: ${workspaceName}`,
               });
             }
 
@@ -8380,20 +8382,22 @@ function initSidebarToggle() {
           closeModal();
           showToast("Deleting workspace...", "info");
 
+          // Get workspace info BEFORE deletion for logging
+          const workspaces = await getAllWorkspaces();
+          const workspace = workspaces.find(
+            (w) => w.workspace_id == workspaceId
+          );
+          const workspaceName = workspace ? workspace.name : "Unknown";
+
           const result = await deleteWorkspaceAPI(workspaceId);
           if (result && result.success) {
             showToast("Workspace deleted successfully", "success");
 
             const currentUser = await getCurrentUser();
-            const workspaces = await getAllWorkspaces();
-            const workspace = workspaces.find(
-              (w) => w.workspace_id == workspaceId
-            );
-
-            if (currentUser && workspace) {
+            if (currentUser) {
               await logActivity({
                 user_id: currentUser.user_id,
-                activity: `Deleted workspace: ${workspace.name}`,
+                activity: `Deleted workspace: ${workspaceName}`,
               });
             }
 

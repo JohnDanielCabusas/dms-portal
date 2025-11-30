@@ -1350,7 +1350,7 @@ class DMSDatabase:
         return DatabaseConfig.execute_query(query, (next_id, name, email, password, role, department_id), lastrowid=True)
 
     @staticmethod
-    def update_user(user_id, name=None, email=None, role=None, department_id=None, status=None, profile_image=None, password=None):
+    def update_user(user_id, name=None, email=None, role=None, department_id=None, status=None, profile_image=None, password=None, clear_department=False):
         """Update user information - supports partial updates"""
         try:
             connection = DatabaseConfig.get_connection()
@@ -1369,9 +1369,39 @@ class DMSDatabase:
             if role is not None:
                 updates.append("role=%s")
                 params.append(role)
-            if department_id is not None:
+            # Handle department changes. DB enforces NOT NULL on users.department_id,
+            # so when clear_department is requested, map to an "Unassigned" department.
+            if department_id is not None or clear_department:
+                target_department_id = department_id
+                if clear_department and (department_id is None):
+                    # Find or create a catch-all department for unassigned users
+                    try:
+                        # Try to find existing 'Unassigned' department
+                        find_sql = "SELECT department_id FROM departments WHERE name=%s"
+                        cursor.execute(find_sql, ("Unassigned",))
+                        row = cursor.fetchone()
+                        if row and row[0]:
+                            target_department_id = row[0]
+                        else:
+                            # Create 'Unassigned' department owned by the user being updated
+                            # Compute next department_id similar to create_department
+                            cursor.execute("SELECT COALESCE(MAX(department_id), 4000) + 1 FROM departments")
+                            next_dept_id = cursor.fetchone()[0]
+                            insert_sql = "INSERT INTO departments (department_id, name, user_id) VALUES (%s, %s, %s)"
+                            cursor.execute(insert_sql, (next_dept_id, "Unassigned", user_id))
+                            target_department_id = next_dept_id
+                            print(f"DEBUG: Created fallback 'Unassigned' department with id {next_dept_id}")
+                    except Exception as dept_err:
+                        print(f"WARNING: Failed ensuring 'Unassigned' department: {dept_err}")
+                        # As a last resort, try to fall back to any existing department
+                        cursor.execute("SELECT department_id FROM departments ORDER BY department_id LIMIT 1")
+                        any_row = cursor.fetchone()
+                        if not any_row:
+                            raise
+                        target_department_id = any_row[0]
+
                 updates.append("department_id=%s")
-                params.append(department_id)
+                params.append(target_department_id)
             if status is not None:
                 updates.append("status=%s")
                 params.append(status)
@@ -1399,7 +1429,9 @@ class DMSDatabase:
             connection.close()
             
             print(f"DEBUG: Updated user {user_id}, affected rows: {affected_rows}")
-            return affected_rows > 0
+            # Treat successful execution as success even if rowcount is 0
+            # (e.g., value already the same). Prevent false 500s on no-op updates.
+            return True
             
         except Exception as e:
             print(f"Error updating user: {e}")
@@ -2293,6 +2325,9 @@ def update_user(user_id):
         
         profile_image_token = normalize_profile_image_token(data.get('profile_image'))
 
+        # Determine if department_id is explicitly intended to be cleared
+        clear_department = 'department_id' in data and data.get('department_id') is None
+
         result = DMSDatabase.update_user(
             user_id, 
             data.get('name'), 
@@ -2301,7 +2336,8 @@ def update_user(user_id):
             data.get('department_id'), 
             data.get('status'), 
             profile_image_token,
-            password  # Pass password if provided
+            password,  # Pass password if provided
+            clear_department=clear_department
         )
         
         if result:
@@ -3094,8 +3130,53 @@ def create_department():
 
 @app.route('/api/departments/<int:department_id>', methods=['DELETE'])
 def delete_department(department_id):
-    DMSDatabase.delete_department(department_id)
-    return jsonify({'success': True})
+    try:
+        connection = DatabaseConfig.get_connection()
+        cursor = connection.cursor()
+
+        # Ensure an 'Unassigned' department exists
+        cursor.execute("SELECT department_id FROM departments WHERE name=%s", ("Unassigned",))
+        row = cursor.fetchone()
+        if row:
+            unassigned_id = row[0]
+        else:
+            cursor.execute("SELECT COALESCE(MAX(department_id), 4000) + 1 FROM departments")
+            unassigned_id = cursor.fetchone()[0]
+            cursor.execute(
+                "INSERT INTO departments (department_id, name, user_id) VALUES (%s, %s, %s)",
+                (unassigned_id, "Unassigned", 1)
+            )
+            print(f"DEBUG: Created 'Unassigned' department id={unassigned_id}")
+
+        # Reassign members to 'Unassigned'
+        cursor.execute(
+            "UPDATE users SET department_id=%s WHERE department_id=%s",
+            (unassigned_id, department_id)
+        )
+        reassigned = cursor.rowcount
+
+        # Attempt to delete the department
+        cursor.execute("DELETE FROM departments WHERE department_id=%s", (department_id,))
+        deleted_rows = cursor.rowcount
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+
+        if deleted_rows > 0:
+            return jsonify({'success': True, 'reassigned_members': reassigned})
+        else:
+            return jsonify({'success': False, 'error': 'Department not found'}), 404
+    except Exception as e:
+        print(f"Error deleting department {department_id}: {e}")
+        try:
+            if 'connection' in locals():
+                connection.rollback()
+        except Exception:
+            pass
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to delete department: {str(e)}'}), 500
 
 @app.route('/api/categories', methods=['GET'])
 def get_categories():

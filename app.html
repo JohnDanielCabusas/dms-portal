@@ -2951,7 +2951,8 @@
           icon = "fa-circle-exclamation";
         }
 
-        toast.style.cssText = `position:fixed;bottom:20px;right:20px;background:${bgColor};color:white;padding:12px 20px;border-radius:8px;z-index:1000;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;`;
+        // Ensure toast appears above modals and overlays
+        toast.style.cssText = `position:fixed;bottom:20px;right:20px;background:${bgColor};color:white;padding:12px 20px;border-radius:8px;z-index:2005;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;align-items:center;gap:8px;pointer-events:auto;`;
         toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${msg}</span>`;
         document.body.appendChild(toast);
 
@@ -10145,6 +10146,16 @@ function initSidebarToggle() {
         const currentUser = await getCurrentUser();
 
         out.innerHTML = "";
+
+        // Hide "Add Department" button for department admins
+        const addDeptBtn = document.querySelector('#departments button[onclick="openAddDepartment()"]');
+        if (addDeptBtn) {
+          if (currentUser?.role === "department_admin") {
+            addDeptBtn.style.display = "none";
+          } else {
+            addDeptBtn.style.display = "flex";
+          }
+        }
 
         if (!departments || departments.length === 0) {
           out.innerHTML =

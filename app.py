@@ -2006,6 +2006,16 @@ class DMSDatabase:
                    ORDER BY al.timestamp DESC 
                    LIMIT %s"""
         return DatabaseConfig.execute_query(query, (limit,), fetch=True)
+    
+    @staticmethod
+    def get_recent_activities_by_user(user_id, limit=10):
+        query = """SELECT al.*, u.name as user_name 
+                   FROM activity_log al 
+                   LEFT JOIN users u ON al.user_id = u.user_id 
+                   WHERE al.user_id = %s
+                   ORDER BY al.timestamp DESC 
+                   LIMIT %s"""
+        return DatabaseConfig.execute_query(query, (user_id, limit), fetch=True)
 
     # Session operations
     @staticmethod
@@ -3243,7 +3253,15 @@ def upload_company_logo():
 
 @app.route('/api/activities', methods=['GET'])
 def get_activities():
-    activities = DMSDatabase.get_recent_activities()
+    request_user = get_request_user()
+    if not request_user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # System admins see all activities, others see only their own
+    if request_user.get('role') == 'system_admin':
+        activities = DMSDatabase.get_recent_activities()
+    else:
+        activities = DMSDatabase.get_recent_activities_by_user(request_user['user_id'])
     return jsonify(activities or [])
 
 @app.route('/api/activities', methods=['POST'])

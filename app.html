@@ -4041,6 +4041,296 @@ function initSidebarToggle() {
         }
       }
 
+      // Global search across the entire system
+      let searchTimeout = null;
+      
+      async function onGlobalSearch(event) {
+        const searchTerm = event.target.value.trim().toLowerCase();
+        
+        // Clear previous timeout
+        if (searchTimeout) {
+          clearTimeout(searchTimeout);
+        }
+        
+        // Clear any existing highlights
+        document.querySelectorAll('.search-highlight, .search-highlight-row').forEach(el => {
+          el.classList.remove('search-highlight', 'search-highlight-row');
+        });
+        
+        // If search is empty, return
+        if (!searchTerm) {
+          return;
+        }
+        
+        // Debounce search
+        searchTimeout = setTimeout(async () => {
+          await performGlobalSearch(searchTerm);
+        }, 300);
+      }
+      
+      async function performGlobalSearch(searchTerm) {
+        const currentUser = currentUserData || await getCurrentUser();
+        if (!currentUser) return;
+        
+        const allowedViews = getAllowedViewsForRole(currentUser.role);
+        let foundResults = false;
+        
+        // Search in Files (Library)
+        if (allowedViews.includes('library')) {
+          const files = await getAllFiles();
+          const matchingFiles = files.filter(f => 
+            (f.name || '').toLowerCase().includes(searchTerm) ||
+            (f.original_name || '').toLowerCase().includes(searchTerm) ||
+            (f.type || '').toLowerCase().includes(searchTerm)
+          );
+          
+          if (matchingFiles.length > 0) {
+            foundResults = true;
+            // Navigate to library
+            currentView = 'library';
+            localStorage.setItem('dms_current_view', 'library');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navItem = document.querySelector('.nav-item[data-view="library"]');
+            if (navItem) navItem.classList.add('active');
+            
+            // Show the view
+            document.querySelectorAll('.view').forEach(v => {
+              v.style.display = v.id === 'library' ? 'block' : 'none';
+            });
+            
+            await renderFiles();
+            
+            // Highlight matching files with auto-remove after 3 seconds
+            setTimeout(() => {
+              matchingFiles.forEach((file, index) => {
+                const fileCard = document.querySelector(`[data-file-id="${file.file_id}"]`);
+                if (fileCard) {
+                  fileCard.classList.add('search-highlight');
+                  if (index === 0) {
+                    fileCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }
+              });
+              
+              // Remove highlights after 3 seconds
+              setTimeout(() => {
+                document.querySelectorAll('.search-highlight').forEach(el => {
+                  el.classList.remove('search-highlight');
+                });
+              }, 3000);
+            }, 200);
+            
+            showToast(`Found ${matchingFiles.length} file(s)`, 'success');
+            return;
+          }
+        }
+        
+        // Search in Workspaces
+        if (allowedViews.includes('workspaces')) {
+          const workspaces = await getAllWorkspaces();
+          const visibleWorkspaces = (workspaces || []).filter(w => {
+            const members = Array.isArray(w.members) ? w.members : [];
+            return w.user_id === currentUser?.user_id || members.includes(currentUser?.user_id);
+          });
+          
+          const matchingWorkspaces = visibleWorkspaces.filter(w =>
+            (w.name || '').toLowerCase().includes(searchTerm) ||
+            (w.description || '').toLowerCase().includes(searchTerm)
+          );
+          
+          if (matchingWorkspaces.length > 0) {
+            foundResults = true;
+            // Navigate to workspaces
+            currentView = 'workspaces';
+            localStorage.setItem('dms_current_view', 'workspaces');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navItem = document.querySelector('.nav-item[data-view="workspaces"]');
+            if (navItem) navItem.classList.add('active');
+            
+            // Show the view
+            document.querySelectorAll('.view').forEach(v => {
+              v.style.display = v.id === 'workspaces' ? 'block' : 'none';
+            });
+            
+            await renderWorkspaces();
+            
+            // Highlight matching workspaces with auto-remove after 3 seconds
+            setTimeout(() => {
+              matchingWorkspaces.forEach((workspace, index) => {
+                const workspaceCard = document.querySelector(`[data-workspace-id="${workspace.workspace_id}"]`);
+                if (workspaceCard) {
+                  workspaceCard.classList.add('search-highlight');
+                  if (index === 0) {
+                    workspaceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }
+              });
+              
+              // Remove highlights after 3 seconds
+              setTimeout(() => {
+                document.querySelectorAll('.search-highlight').forEach(el => {
+                  el.classList.remove('search-highlight');
+                });
+              }, 3000);
+            }, 200);
+            
+            showToast(`Found ${matchingWorkspaces.length} workspace(s)`, 'success');
+            return;
+          }
+        }
+        
+        // Search in Users (User Management)
+        if (allowedViews.includes('userMgmt')) {
+          const users = await getAllUsers();
+          const matchingUsers = users.filter(u =>
+            (u.name || '').toLowerCase().includes(searchTerm) ||
+            (u.email || '').toLowerCase().includes(searchTerm) ||
+            (u.role || '').toLowerCase().includes(searchTerm)
+          );
+          
+          if (matchingUsers.length > 0) {
+            foundResults = true;
+            // Navigate to user management
+            currentView = 'userMgmt';
+            localStorage.setItem('dms_current_view', 'userMgmt');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navItem = document.querySelector('.nav-item[data-view="userMgmt"]');
+            if (navItem) navItem.classList.add('active');
+            
+            // Show the view
+            document.querySelectorAll('.view').forEach(v => {
+              v.style.display = v.id === 'userMgmt' ? 'block' : 'none';
+            });
+            
+            await renderUsers();
+            
+            // Highlight matching users with auto-remove after 3 seconds
+            setTimeout(() => {
+              matchingUsers.forEach((user, index) => {
+                const userRow = document.querySelector(`#usersTable tbody tr[data-user-id="${user.user_id}"]`);
+                if (userRow) {
+                  userRow.classList.add('search-highlight-row');
+                  if (index === 0) {
+                    userRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }
+              });
+              
+              // Remove highlights after 3 seconds
+              setTimeout(() => {
+                document.querySelectorAll('.search-highlight-row').forEach(el => {
+                  el.classList.remove('search-highlight-row');
+                });
+              }, 3000);
+            }, 200);
+            
+            showToast(`Found ${matchingUsers.length} user(s)`, 'success');
+            return;
+          }
+        }
+        
+        // Search in Categories
+        if (allowedViews.includes('categories')) {
+          const categories = await getAllCategories();
+          const matchingCategories = categories.filter(c =>
+            (c.name || '').toLowerCase().includes(searchTerm) ||
+            (c.description || '').toLowerCase().includes(searchTerm)
+          );
+          
+          if (matchingCategories.length > 0) {
+            foundResults = true;
+            // Navigate to categories
+            currentView = 'categories';
+            localStorage.setItem('dms_current_view', 'categories');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navItem = document.querySelector('.nav-item[data-view="categories"]');
+            if (navItem) navItem.classList.add('active');
+            
+            // Show the view
+            document.querySelectorAll('.view').forEach(v => {
+              v.style.display = v.id === 'categories' ? 'block' : 'none';
+            });
+            
+            await renderCategories();
+            
+            // Highlight matching categories with auto-remove after 3 seconds
+            setTimeout(() => {
+              matchingCategories.forEach((category, index) => {
+                const categoryCard = document.querySelector(`[data-category-id="${category.category_id}"]`);
+                if (categoryCard) {
+                  categoryCard.classList.add('search-highlight');
+                  if (index === 0) {
+                    categoryCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }
+              });
+              
+              // Remove highlights after 3 seconds
+              setTimeout(() => {
+                document.querySelectorAll('.search-highlight').forEach(el => {
+                  el.classList.remove('search-highlight');
+                });
+              }, 3000);
+            }, 200);
+            
+            showToast(`Found ${matchingCategories.length} categor${matchingCategories.length === 1 ? 'y' : 'ies'}`, 'success');
+            return;
+          }
+        }
+        
+        // Search in Departments
+        if (allowedViews.includes('departments')) {
+          const departments = await getAllDepartments();
+          const matchingDepartments = departments.filter(d =>
+            (d.name || '').toLowerCase().includes(searchTerm)
+          );
+          
+          if (matchingDepartments.length > 0) {
+            foundResults = true;
+            // Navigate to departments
+            currentView = 'departments';
+            localStorage.setItem('dms_current_view', 'departments');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const navItem = document.querySelector('.nav-item[data-view="departments"]');
+            if (navItem) navItem.classList.add('active');
+            
+            // Show the view
+            document.querySelectorAll('.view').forEach(v => {
+              v.style.display = v.id === 'departments' ? 'block' : 'none';
+            });
+            
+            await renderDepartments();
+            
+            // Highlight matching departments with auto-remove after 3 seconds
+            setTimeout(() => {
+              matchingDepartments.forEach((department, index) => {
+                const deptCard = document.querySelector(`[data-department-id="${department.department_id}"]`);
+                if (deptCard) {
+                  deptCard.classList.add('search-highlight');
+                  if (index === 0) {
+                    deptCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }
+              });
+              
+              // Remove highlights after 3 seconds
+              setTimeout(() => {
+                document.querySelectorAll('.search-highlight').forEach(el => {
+                  el.classList.remove('search-highlight');
+                });
+              }, 3000);
+            }, 200);
+            
+            showToast(`Found ${matchingDepartments.length} department(s)`, 'success');
+            return;
+          }
+        }
+        
+        if (!foundResults) {
+          showToast('No results found', 'info');
+        }
+      }
+
       function goHome() {
         currentView = "dashboard";
         currentWorkspaceId = null;

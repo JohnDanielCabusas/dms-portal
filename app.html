@@ -5353,9 +5353,11 @@ function initSidebarToggle() {
         input.addEventListener("keydown", async (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
+            e.stopPropagation(); 
             await confirmRename(fileId, input.value.trim(), currentName, input);
           } else if (e.key === "Escape") {
             e.preventDefault();
+            e.stopPropagation(); 
             cancelRename(input, currentName, currentNameElement);
           }
         });
@@ -5531,9 +5533,13 @@ function initSidebarToggle() {
         isOverwrite = false
       ) {
         try {
-          await renameFileRequest(fileId, newName);
+          // Call the API to rename the file
+          const result = await renameFileRequest(fileId, newName);
+          
+          // If we got here, the API call succeeded
+          console.log("Rename API call successful:", result);
 
-          // Update the UI immediately in all file cards
+          // Update the UI immediately - create the new name element
           const nameElement = document.createElement("div");
           nameElement.className = "doc-name";
           nameElement.textContent = newName;
@@ -5542,7 +5548,17 @@ function initSidebarToggle() {
             startRenameFile(fileId, nameElement);
           };
 
-          inputElement.replaceWith(nameElement);
+          // Replace the input with the new name element
+          if (inputElement && inputElement.parentNode) {
+            inputElement.replaceWith(nameElement);
+          }
+
+          // Show success message immediately
+          if (isOverwrite) {
+            showToast("File successfully overwritten.", "success");
+          } else {
+            showToast("File renamed successfully", "success");
+          }
 
           // Update all file cards with the same file_id across the page
           document
@@ -5575,35 +5591,37 @@ function initSidebarToggle() {
             );
           }
 
-          if (isOverwrite) {
-            showToast("File successfully overwritten.", "success");
-          } else {
-            showToast("File renamed successfully", "success");
-          }
-
-          // Refresh views
-          await renderFiles();
+          // Refresh views in the background (don't await to avoid race conditions)
+          renderFiles().catch(err => console.error("Error refreshing files:", err));
           if (typeof renderWorkspaceFiles === "function") {
-            await renderWorkspaceFiles();
+            renderWorkspaceFiles().catch(err => console.error("Error refreshing workspace files:", err));
           }
-          await refreshStats();
+          refreshStats().catch(err => console.error("Error refreshing stats:", err));
 
-          // Log activity
-          const currentUser = await getCurrentUser();
-          if (currentUser) {
-            await logActivity({
-              user_id: currentUser.user_id,
-              activity: `Renamed file from "${originalName}" to "${newName}"`,
-            });
-          }
+          // Log activity in the background
+          getCurrentUser().then(currentUser => {
+            if (currentUser) {
+              logActivity({
+                user_id: currentUser.user_id,
+                activity: `Renamed file from "${originalName}" to "${newName}"`,
+              }).catch(err => console.error("Error logging activity:", err));
+            }
+          });
+
         } catch (error) {
           console.error("Rename error:", error);
           showToast(`Failed to rename: ${error.message}`, "error");
-          cancelRename(inputElement, originalName);
+          
+          // Only try to cancel rename if the input still exists
+          if (inputElement && inputElement.parentNode) {
+            cancelRename(inputElement, originalName);
+          }
         }
       }
 
       async function renameFileRequest(fileId, newName) {
+        console.log(`Renaming file ${fileId} to "${newName}"`);
+        
         const response = await authFetch(
           `${API_BASE_URL}/files/${fileId}/rename`,
           {
@@ -5615,10 +5633,18 @@ function initSidebarToggle() {
           }
         );
 
+        console.log("Rename API response status:", response.status, response.ok);
+        
         const result = await response.json();
+        console.log("Rename API response body:", result);
+        
         if (!response.ok || !result.success) {
-          throw new Error(result?.error || "Failed to rename file");
+          const errorMsg = result?.error || `HTTP ${response.status}: Failed to rename file`;
+          console.error("Rename failed:", errorMsg);
+          throw new Error(errorMsg);
         }
+        
+        console.log("Rename successful");
         return result;
       }
 

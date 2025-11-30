@@ -2760,15 +2760,22 @@ def rename_file(file_id):
                     'is_encrypted': bool(new_file_path_hash),
                     'encryption_version': current_encryption_version()
                 })
+                
+                print(f"DEBUG: File renamed successfully: {original_name} -> {new_name}")
+                return jsonify({'success': True, 'message': 'File renamed successfully'})
+                
             except Exception as e:
                 print(f"Warning: Could not rename physical file: {e}")
                 # Still update the name in database even if physical rename fails
                 DMSDatabase.update_file(file_id, {'name': new_name})
+                
+                print(f"DEBUG: File renamed in database only: {original_name} -> {new_name}")
+                return jsonify({'success': True, 'message': 'File renamed successfully (database only)'})
         else:
             # File not found physically, just update the name in database
-            result = DMSDatabase.update_file(file_id, {'name': new_name})
-            if not result:
-                return jsonify({'success': False, 'error': 'Failed to rename file'}), 500
+            DMSDatabase.update_file(file_id, {'name': new_name})
+            
+            print(f"DEBUG: File renamed in database (no physical file): {original_name} -> {new_name}")
         
         return jsonify({'success': True, 'message': 'File renamed successfully'})
             

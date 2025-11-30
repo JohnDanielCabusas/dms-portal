@@ -598,7 +598,6 @@ def upload_file():
             'classification_error': classification_result.get('error'),
             'text_sample': classification_result.get('text_sample'),
             'shared': False,
-            'document_type_category_id': None,
             'file_path': file_path_hash,  # Store only the protected path/token in the DB
             'is_encrypted': bool(file_path_hash),
             'encryption_version': current_encryption_version()
@@ -1522,14 +1521,14 @@ class DMSDatabase:
     def create_file(file_data):
         query = """INSERT INTO files (name, original_name, size, type, user_id, workspace_id, category_id, 
                 document_type, classification_confidence, classification_error, text_sample, 
-                shared, document_type_category_id, file_path, is_encrypted, encryption_version) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                shared, file_path, is_encrypted, encryption_version) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         params = (
             file_data['name'], file_data['original_name'], file_data['size'], file_data['type'],
             file_data['user_id'], file_data.get('workspace_id'), file_data.get('category_id'),
             file_data.get('document_type'), file_data.get('classification_confidence'),
             file_data.get('classification_error'), file_data.get('text_sample'),
-            file_data.get('shared', False), file_data.get('document_type_category_id'),
+            file_data.get('shared', False),
             file_data.get('file_path'), file_data.get('is_encrypted', False),
             file_data.get('encryption_version')
         )
@@ -2008,8 +2007,39 @@ class DMSDatabase:
         return DatabaseConfig.execute_query(query, (workspace_id,))
 
     @staticmethod
-    def create_reset_code(email, code):
-        query = "INSERT INTO reset_codes (email, code) VALUES (%s, %s)"
+    def create_reset_code(email, code, token=None, expires_at=None):
+        """
+        Create a reset code for password reset.
+        Stores email, code, token, expiry time, and tracks if it's been used.
+        """
+        query = "INSERT INTO reset_codes (email, code, token, expires_at, is_used) VALUES (%s, %s, %s, %s, %s)"
+        import uuid
+        import datetime
+        if token is None:
+            token = str(uuid.uuid4())
+        if expires_at is None:
+            # Token expires in 1 hour
+            expires_at = datetime.datetime.now() + datetime.timedelta(hours=1)
+        return DatabaseConfig.execute_query(query, (email, code, token, expires_at, 0), lastrowid=True)
+    
+    @staticmethod
+    def verify_reset_code(email, code):
+        """
+        Verify if a reset code is valid (not used and not expired).
+        """
+        query = """SELECT * FROM reset_codes 
+                   WHERE email = %s AND code = %s 
+                   AND is_used = 0 
+                   AND (expires_at IS NULL OR expires_at > NOW())
+                   ORDER BY reset_codes_id DESC LIMIT 1"""
+        return DatabaseConfig.execute_query(query, (email, code), fetch_one=True)
+    
+    @staticmethod
+    def mark_reset_code_as_used(email, code):
+        """
+        Mark a reset code as used after successful password reset.
+        """
+        query = "UPDATE reset_codes SET is_used = 1 WHERE email = %s AND code = %s"
         return DatabaseConfig.execute_query(query, (email, code))
 
     # Settings operations
@@ -3666,10 +3696,87 @@ def create_session():
 
 @app.route('/api/reset-codes', methods=['POST'])
 def create_reset_code():
-    data = request.json
-    # In a real app, you'd store this in the database and send via email
-    # For demo, we'll just return success
-    return jsonify({'success': True, 'code': data.get('code')})
+    """
+    Store reset code in database for password recovery.
+    Expects: {email: str, code: str}
+    """
+    try:
+        data = request.json
+        email = data.get('email')
+        code = data.get('code')
+        
+        if not email or not code:
+            return jsonify({'success': False, 'error': 'Email and code are required'}), 400
+        
+        # Store reset code in database
+        reset_code_id = DMSDatabase.create_reset_code(email, code)
+        
+        if reset_code_id:
+            print(f"✅ Reset code stored in DB: email={email}, code={code}, id={reset_code_id}")
+            return jsonify({'success': True, 'code': code, 'reset_code_id': reset_code_id}), 201
+        else:
+            print(f"❌ Failed to store reset code for {email}")
+            return jsonify({'success': False, 'error': 'Failed to store reset code'}), 500
+    except Exception as e:
+        print(f"❌ Error in create_reset_code: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/reset-password', methods=['POST'])
+def reset_password():
+    """
+    Reset user password using reset code.
+    Marks the reset code as used after successful password update.
+    Expects: {email: str, code: str, password: str}
+    """
+    try:
+        data = request.json
+        email = data.get('email')
+        code = data.get('code')
+        new_password = data.get('password')
+        
+        if not email or not code or not new_password:
+            return jsonify({'success': False, 'error': 'Email, code, and password are required'}), 400
+        
+        # Verify the reset code is valid (not used and not expired)
+        reset_record = DMSDatabase.verify_reset_code(email, code)
+        if not reset_record:
+            print(f"❌ Invalid or expired reset code for {email}")
+            return jsonify({'success': False, 'error': 'Invalid or expired reset code'}), 400
+        
+        # Find user by email
+        users = DMSDatabase.get_all_users()
+        user = next((u for u in users if u['email'] == email), None)
+        
+        if not user:
+            print(f"❌ User not found with email: {email}")
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # Update user password
+        update_result = DMSDatabase.update_user(
+            user['user_id'],
+            name=None,
+            email=None,
+            role=None,
+            department_id=None,
+            status=None,
+            profile_image=None,
+            password=new_password
+        )
+        
+        if update_result:
+            # Mark reset code as used
+            DMSDatabase.mark_reset_code_as_used(email, code)
+            print(f"✅ Password reset successful for {email}, reset code marked as used")
+            return jsonify({'success': True, 'message': 'Password reset successfully'}), 200
+        else:
+            print(f"❌ Failed to update password for user {user['user_id']}")
+            return jsonify({'success': False, 'error': 'Failed to reset password'}), 500
+            
+    except Exception as e:
+        print(f"❌ Error in reset_password: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):

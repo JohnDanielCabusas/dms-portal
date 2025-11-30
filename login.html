@@ -738,55 +738,42 @@ async function doResetPassword(){
         return;
     }
    
-    // Use the stored email from verification
+    // Use the stored email and code from verification
     const email = currentResetEmail;
-    if (!email) {
+    const code = currentResetCode;
+    
+    if (!email || !code) {
         showToast('Session expired. Please start over.', 'error');
         showLogin();
         return;
     }
     
-    const users = await apiCall('/users');
-   
-    if (!users) {
-        showToast('Cannot connect to server', 'error');
-        return;
-    }
-
-
-    const user = users.find(u => u.email === email);
-   
-    if (user) {
-        console.log("DEBUG: Updating password for user:", user.user_id);
-       
-        // Update user password in database - USE THE CORRECT ENDPOINT
-        const updateResult = await apiCall(`/users/${user.user_id}`, {
-            method: 'PUT',
+    try {
+        // Call the dedicated reset-password endpoint which will:
+        // 1. Verify the reset code is valid
+        // 2. Update the password in the database
+        // 3. Mark the reset code as used
+        const result = await apiCall('/reset-password', {
+            method: 'POST',
             body: {
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                department_id: user.department_id,
-                status: user.status,
-                profile_image: user.profile_image,
-                password: newPassword  // Include the new password
+                email: email,
+                code: code,
+                password: newPassword
             }
         });
 
-
-        console.log("DEBUG: Update result:", updateResult);
-
-
-        if (updateResult && updateResult.success) {
-            showToast('Password reset successfully', 'success');
+        if (result && result.success) {
+            showToast('Password reset successfully!', 'success');
+            console.log('✅ Password reset complete. Reset code has been marked as used.');
             setTimeout(() => {
                 showLogin();
             }, 1500);
         } else {
-            showToast('Error resetting password', 'error');
+            showToast(result?.error || 'Error resetting password', 'error');
         }
-    } else {
-        showToast('User not found', 'error');
+    } catch (error) {
+        console.error('Error during password reset:', error);
+        showToast('An unexpected error occurred during password reset', 'error');
     }
 }
 

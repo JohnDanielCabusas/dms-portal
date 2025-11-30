@@ -2641,7 +2641,7 @@
                 >
                   <i class="fa-solid fa-sort-alpha-down" id="sortIcon"></i> Sort
                 </button>
-                <button onclick="openAddCategory()">
+                <button id="addCategoryBtn" onclick="openAddCategory()">
                   <i class="fa-solid fa-plus"></i> Add Category
                 </button>
               </div>
@@ -10830,6 +10830,16 @@ function initSidebarToggle() {
 
         categories = categories || [];
 
+        // Hide "Add Category" button for staff and department_admin
+        const addCategoryBtn = document.getElementById("addCategoryBtn");
+        if (addCategoryBtn) {
+          if (currentUser?.role === "system_admin") {
+            addCategoryBtn.style.display = "inline-flex";
+          } else {
+            addCategoryBtn.style.display = "none";
+          }
+        }
+
         categories.sort((a, b) => {
           const nameA = a.name.toLowerCase();
           const nameB = b.name.toLowerCase();
@@ -10904,12 +10914,12 @@ function initSidebarToggle() {
                       </div>
                       <div style="display:flex;gap:8px;align-items:center;">
                           <i class="fa-solid fa-chevron-down category-arrow" style="transition: transform 0.3s ease;color:var(--text-muted);margin-right:16px;"></i>
-                          <button onclick="event.stopPropagation(); openEditCategory(${
-                            c.category_id
-                          })"><i class="fa-solid fa-pen"></i> Edit</button>
                           ${
                             currentUser?.role === "system_admin"
                               ? `
+                          <button onclick="event.stopPropagation(); openEditCategory(${
+                            c.category_id
+                          })"><i class="fa-solid fa-pen"></i> Edit</button>
                           <button class="btn-danger" onclick="event.stopPropagation(); deleteCategory(${
                             c.category_id
                           }, '${c.name.replace(

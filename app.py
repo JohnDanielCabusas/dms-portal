@@ -3194,39 +3194,67 @@ def create_category():
 
 @app.route('/api/categories/<int:category_id>', methods=['PUT'])
 def update_category(category_id):
-    data = request.json
-    result = DMSDatabase.update_category(category_id, data.get('name'), data.get('description'))
-    if result:
-        return jsonify({'success': True})
-    return jsonify({'success': False, 'error': 'Failed to update category'}), 500
+    try:
+        data = request.json
+        connection = DatabaseConfig.get_connection()
+        cursor = connection.cursor()
+        
+        cursor.execute(
+            "UPDATE categories SET name=%s, description=%s WHERE category_id=%s",
+            (data.get('name'), data.get('description'), category_id)
+        )
+        updated_rows = cursor.rowcount
+        
+        connection.commit()
+        cursor.close()
+        connection.close()
+        
+        if updated_rows > 0:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Category not found'}), 404
+    except Exception as e:
+        print(f"Error updating category {category_id}: {e}")
+        try:
+            if 'connection' in locals():
+                connection.rollback()
+        except Exception:
+            pass
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to update category: {str(e)}'}), 500
 
 @app.route('/api/categories/<int:category_id>', methods=['DELETE'])
 def delete_category(category_id):
     try:
-        # Check if category has files
-        files = DMSDatabase.get_all_files()
-        category_files = [f for f in files if f.get('category_id') == category_id and f.get('status') == 'active']
+        connection = DatabaseConfig.get_connection()
+        cursor = connection.cursor()
         
-        if category_files:
-            return jsonify({'success': False, 'error': 'Cannot delete category with active files. Please remove or reassign files first.'}), 400
+        # The FK constraint is ON DELETE SET NULL, so files will be automatically
+        # set to NULL when we delete the category. Just delete it directly.
+        cursor.execute("DELETE FROM categories WHERE category_id = %s", (category_id,))
+        deleted_rows = cursor.rowcount
         
-        # Delete category
-        query = "DELETE FROM categories WHERE category_id = %s"
-        result = DatabaseConfig.execute_query(query, (category_id,))
+        connection.commit()
+        cursor.close()
+        connection.close()
         
-        if result:
+        if deleted_rows > 0:
             return jsonify({'success': True, 'message': 'Category deleted successfully'})
         else:
-            return jsonify({'success': False, 'error': 'Failed to delete category'}), 500
+            return jsonify({'success': False, 'error': 'Category not found'}), 404
     except Exception as e:
-        print(f"Error deleting category: {e}")
+        print(f"Error deleting category {category_id}: {e}")
+        try:
+            if 'connection' in locals():
+                connection.rollback()
+        except Exception:
+            pass
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': f'Failed to delete category: {str(e)}'}), 500
 
-@app.route('/api/categories/<int:category_id>', methods=['PUT'])
-def update_category_old(category_id):
-    data = request.json
-    DMSDatabase.update_category(category_id, data['name'], data.get('description'))
-    return jsonify({'success': True})
+
 
 @app.route('/api/workspaces', methods=['GET'])
 def get_workspaces():

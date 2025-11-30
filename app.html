@@ -3945,7 +3945,7 @@ function initSidebarToggle() {
           return;
         }
 
-        // For password change - in real app, verify current password via API
+        // For password change - verify current password via API
         if (currentPassword || newPassword || confirmPassword) {
           if (!currentPassword) {
             showToast("Current password is required to change password");
@@ -3964,6 +3964,18 @@ function initSidebarToggle() {
 
           if (newPassword !== confirmPassword) {
             showToast("New passwords do not match");
+            return;
+          }
+
+          // Verify current password with backend
+          showToast("Verifying current password...", "info");
+          const verifyResult = await apiCall(`/users/${user.user_id}/verify-password`, {
+            method: 'POST',
+            body: { current_password: currentPassword }
+          });
+
+          if (!verifyResult || !verifyResult.success) {
+            showToast("Incorrect current password. Please try again.", "error");
             return;
           }
         }

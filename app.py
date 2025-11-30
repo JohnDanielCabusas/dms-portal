@@ -2545,6 +2545,33 @@ def create_user():
     
     return jsonify({'user_id': user_id, 'success': True})
 
+@app.route('/api/users/<int:user_id>/verify-password', methods=['POST'])
+def verify_user_password(user_id):
+    """Verify if the provided current password matches the user's password"""
+    try:
+        data = request.json
+        current_password = data.get('current_password')
+        
+        if not current_password:
+            return jsonify({'success': False, 'error': 'Current password is required'}), 400
+        
+        # Get user from database
+        user = DMSDatabase.get_user_by_id(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # Check if password matches
+        if user.get('password') == current_password:
+            return jsonify({'success': True, 'message': 'Password verified'})
+        else:
+            return jsonify({'success': False, 'error': 'Incorrect current password'}), 401
+            
+    except Exception as e:
+        print(f"Error verifying password for user {user_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': 'Failed to verify password'}), 500
+
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
     try:

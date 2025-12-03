@@ -2071,17 +2071,25 @@ class DMSDatabase:
         return settings
 
     @staticmethod
-    def update_settings(company, max_file_mb, allowed_types, company_logo=None):
+    def update_settings(company, max_file_mb, allowed_types, company_logo=None, updated_by=None):
         """
         Update core system settings. If company_logo is None, the existing logo
         is preserved to avoid accidentally clearing it.
         """
         if company_logo is None:
-            query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s WHERE settings_id=6001"
-            params = (company, max_file_mb, allowed_types)
+            if updated_by is None:
+                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s WHERE settings_id=6001"
+                params = (company, max_file_mb, allowed_types)
+            else:
+                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, updated_by=%s WHERE settings_id=6001"
+                params = (company, max_file_mb, allowed_types, updated_by)
         else:
-            query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, company_logo=%s WHERE settings_id=6001"
-            params = (company, max_file_mb, allowed_types, company_logo)
+            if updated_by is None:
+                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, company_logo=%s WHERE settings_id=6001"
+                params = (company, max_file_mb, allowed_types, company_logo)
+            else:
+                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, company_logo=%s, updated_by=%s WHERE settings_id=6001"
+                params = (company, max_file_mb, allowed_types, company_logo, updated_by)
         return DatabaseConfig.execute_query(query, params)
 
     @staticmethod
@@ -3612,11 +3620,14 @@ def get_settings():
 @app.route('/api/settings', methods=['PUT'])
 def update_settings():
     data = request.json
+    current_user = get_request_user()
+    updated_by = current_user.get('user_id') if current_user else None
     DMSDatabase.update_settings(
         data['company'],
         data['max_file_mb'],
         data['allowed_types'],
-        data.get('company_logo')
+        data.get('company_logo'),
+        updated_by
     )
     return jsonify({'success': True})
 

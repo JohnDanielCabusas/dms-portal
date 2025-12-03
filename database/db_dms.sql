@@ -1161,36 +1161,43 @@ ALTER TABLE reset_codes
     FOREIGN KEY (user_id) REFERENCES users(user_id)
     ON DELETE SET NULL
     ON UPDATE CASCADE;
+--  Add nullable created_by and updated_by columns
+ALTER TABLE settings
+  ADD COLUMN created_by INT NULL AFTER company_logo,
+  ADD COLUMN updated_by INT NULL AFTER created_by;
 
+--  (Optional) Backfill created_by/updated_by to a known admin (replace 1 with the admin user_id)
+-- Only run if you want to attribute the existing settings row to an existing user
+UPDATE settings SET created_by = 1, updated_by = 1 WHERE settings_id = 6001 AND (created_by IS NULL OR updated_by IS NULL);
 
+--  Add indexes then FK constraints referencing users.user_id (ON DELETE SET NULL recommended)
+ALTER TABLE settings
+  ADD INDEX idx_settings_created_by (created_by),
+  ADD INDEX idx_settings_updated_by (updated_by);
+
+ALTER TABLE settings
+  ADD CONSTRAINT fk_settings_created_by
+    FOREIGN KEY (created_by) REFERENCES users(user_id)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE,
+  ADD CONSTRAINT fk_settings_updated_by
+    FOREIGN KEY (updated_by) REFERENCES users(user_id)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE;
+
+--  Verify
+SELECT * FROM settings;
+SHOW CREATE TABLE settings;
+
+ALTER TABLE users
+  DROP COLUMN archive_reason,
+  DROP COLUMN archive_notes,
+  DROP COLUMN archived_at;
+
+  
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 
--- ADD COLUMNS FOR RESET CODES
-ALTER TABLE reset_codes ADD COLUMN token VARCHAR(255) UNIQUE NOT NULL DEFAULT '';
-ALTER TABLE reset_codes ADD COLUMN expires_at TIMESTAMP NULL DEFAULT NULL;
-ALTER TABLE reset_codes ADD COLUMN is_used TINYINT(1) DEFAULT 0;
-
--- unused table
-SET FOREIGN_KEY_CHECKS = 0;
-DROP TABLE IF EXISTS file_editors;
-DROP TABLE IF EXISTS file_versions;
-SET FOREIGN_KEY_CHECKS = 1;
-
--- unused columns
-ALTER TABLE files DROP COLUMN editable_content;
-ALTER TABLE files DROP COLUMN is_editable;
-ALTER TABLE files DROP COLUMN current_version;
-
-
--- Drop the foreign key constraint
-ALTER TABLE files DROP FOREIGN KEY files_ibfk_4;
-
--- Drop the index
-ALTER TABLE files DROP INDEX document_type_category_id;
-
--- Drop the column
-ALTER TABLE files DROP COLUMN document_type_category_id;

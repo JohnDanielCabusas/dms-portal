@@ -1454,15 +1454,10 @@ class DMSDatabase:
         
     @staticmethod
     def archive_user(user_id, reason=None, notes=None):
-        # Update status to archived (reason and notes are optional for backward compatibility)
-        if reason or notes:
-            query = """UPDATE users SET status='archived', archive_reason=%s, archive_notes=%s, archived_at=NOW() 
-                       WHERE user_id=%s"""
-            return DatabaseConfig.execute_query(query, (reason, notes, user_id))
-        else:
-            query = """UPDATE users SET status='archived', archived_at=NOW() 
-                       WHERE user_id=%s"""
-            return DatabaseConfig.execute_query(query, (user_id,))
+        # Update status to archived. Removed storage of archive_reason,
+        # archive_notes, and archived_at from the schema — only set status.
+        query = "UPDATE users SET status='archived', updated_at=NOW() WHERE user_id=%s"
+        return DatabaseConfig.execute_query(query, (user_id,))
     
     @staticmethod
     def delete_user(user_id):

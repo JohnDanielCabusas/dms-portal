@@ -2012,7 +2012,15 @@ class DMSDatabase:
         Create a reset code for password reset.
         Stores email, code, token, expiry time, and tracks if it's been used.
         """
-        query = "INSERT INTO reset_codes (email, code, token, expires_at, is_used) VALUES (%s, %s, %s, %s, %s)"
+        # Try to resolve the user_id from email so reset codes are associated to users
+        connection = None
+        try:
+            user_row = DatabaseConfig.execute_query("SELECT user_id FROM users WHERE email = %s", (email,), fetch_one=True)
+            user_id = user_row.get('user_id') if user_row else None
+        except Exception:
+            user_id = None
+
+        query = "INSERT INTO reset_codes (email, code, token, expires_at, is_used, user_id) VALUES (%s, %s, %s, %s, %s, %s)"
         import uuid
         import datetime
         if token is None:
@@ -2020,7 +2028,7 @@ class DMSDatabase:
         if expires_at is None:
             # Token expires in 1 hour
             expires_at = datetime.datetime.now() + datetime.timedelta(hours=1)
-        return DatabaseConfig.execute_query(query, (email, code, token, expires_at, 0), lastrowid=True)
+        return DatabaseConfig.execute_query(query, (email, code, token, expires_at, 0, user_id), lastrowid=True)
     
     @staticmethod
     def verify_reset_code(email, code):

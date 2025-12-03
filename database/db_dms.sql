@@ -1090,6 +1090,79 @@ ALTER TABLE `workspaces`
 ALTER TABLE `workspace_members`
   ADD CONSTRAINT `workspace_members_ibfk_1` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces` (`workspace_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `workspace_members_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+-- --------------------------------------------------------
+
+ALTER TABLE `settings`
+  ADD COLUMN `company_logo` VARCHAR(255) NULL AFTER `company`;
+
+INSERT INTO `settings` (settings_id, company, max_file_mb, allowed_types, company_logo)
+VALUES (6001, 'DMS', 50, 'pdf,doc,docx,jpg,jpeg,png,txt', NULL)
+ON DUPLICATE KEY UPDATE settings_id = settings_id;
+
+ALTER TABLE `files`
+  ADD COLUMN `is_encrypted` TINYINT(1) NOT NULL DEFAULT 0 AFTER `file_path`,
+  ADD COLUMN `encryption_version` VARCHAR(32) NULL AFTER `is_encrypted`;
+
+UPDATE `files`
+SET is_encrypted = CASE WHEN file_path IS NOT NULL AND file_path <> '' THEN 1 ELSE 0 END,
+    encryption_version = COALESCE(encryption_version, 'hash_v1');
+
+ALTER TABLE reset_codes ADD COLUMN token VARCHAR(255) UNIQUE NOT NULL DEFAULT '';
+ALTER TABLE reset_codes ADD COLUMN expires_at TIMESTAMP NULL DEFAULT NULL;
+ALTER TABLE reset_codes ADD COLUMN is_used TINYINT(1) DEFAULT 0;
+
+-- ADD COLUMNS FOR RESET CODES
+ALTER TABLE reset_codes ADD COLUMN token VARCHAR(255) UNIQUE NOT NULL DEFAULT '';
+ALTER TABLE reset_codes ADD COLUMN expires_at TIMESTAMP NULL DEFAULT NULL;
+ALTER TABLE reset_codes ADD COLUMN is_used TINYINT(1) DEFAULT 0;
+
+-- unused table
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS file_editors;
+DROP TABLE IF EXISTS file_versions;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- unused columns
+ALTER TABLE files DROP COLUMN editable_content;
+ALTER TABLE files DROP COLUMN is_editable;
+ALTER TABLE files DROP COLUMN current_version;
+
+
+-- Drop the foreign key constraint
+ALTER TABLE files DROP FOREIGN KEY files_ibfk_4;
+
+-- Drop the index
+ALTER TABLE files DROP INDEX document_type_category_id;
+
+-- Drop the column
+ALTER TABLE files DROP COLUMN document_type_category_id;
+ 
+-- Migration: add user_id to reset_codes, backfill from users.email, add FK
+
+-- Add nullable user_id column
+ALTER TABLE reset_codes
+  ADD COLUMN user_id INT NULL AFTER email;
+
+--  Backfill existing rows by matching email -> users.email
+UPDATE reset_codes rc
+JOIN users u ON rc.email = u.email
+SET rc.user_id = u.user_id
+WHERE rc.user_id IS NULL;
+
+-- Check how many rows remain unmatched (inspect output before continuing)
+SELECT COUNT(*) AS no_user_matches FROM reset_codes WHERE user_id IS NULL;
+
+-- Add index and foreign key constraint (ON DELETE SET NULL recommended)
+ALTER TABLE reset_codes
+  ADD INDEX idx_reset_codes_user_id (user_id);
+
+ALTER TABLE reset_codes
+  ADD CONSTRAINT fk_reset_codes_user
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    ON DELETE SET NULL
+    ON UPDATE CASCADE;
+
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

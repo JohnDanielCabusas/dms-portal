@@ -11100,14 +11100,33 @@ function initSidebarToggle() {
       }
 
       async function deleteDepartment(departmentId, departmentName) {
-        if (
-          !confirm(
-            `Are you sure you want to delete department "${departmentName}"? This action cannot be undone.`
-          )
-        ) {
-          return;
-        }
+        openModal(`
+          <div style="text-align: center;">
+            <div style="width: 72px; height: 72px; margin: 0 auto 24px; border-radius: 50%; background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-exclamation-triangle" style="font-size: 32px; color: #ef4444;"></i>
+            </div>
+            <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600;">Delete Department</h3>
+            <p style="color: var(--text-muted); margin: 0 0 8px 0; font-size: 14px; line-height: 1.6;">
+              Are you sure you want to delete "<strong>${departmentName}</strong>"?
+            </p>
+            <p style="color: var(--text-muted); margin: 0 0 24px 0; font-size: 13px; line-height: 1.6;">
+              This action cannot be undone.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+              <button onclick="closeModal()" class="btn-secondary" style="flex: 1; max-width: 140px;">
+                <i class="fas fa-times"></i> Cancel
+              </button>
+              <button onclick="executeDeleteDepartment(${departmentId}, '${departmentName.replace(/'/g, "\\'")}');" class="btn-danger" style="flex: 1; max-width: 140px;">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        `);
+      }
 
+      async function executeDeleteDepartment(departmentId, departmentName) {
+        closeModal();
+        
         const result = await deleteDepartmentAPI(departmentId);
         if (result) {
           showToast(
@@ -11862,10 +11881,58 @@ function initSidebarToggle() {
           return;
         }
 
-        const confirmMsg = `Are you sure you want to permanently delete ${checkboxes.length} item(s)? This action cannot be undone.`;
-        if (!confirm(confirmMsg)) {
-          return;
-        }
+        const files = [];
+        const users = [];
+
+        checkboxes.forEach((cb) => {
+          const type = cb.getAttribute("data-type");
+          const id = parseInt(cb.getAttribute("data-id"));
+          if (type === "file") {
+            files.push(id);
+          } else if (type === "user") {
+            users.push(id);
+          }
+        });
+
+        const totalCount = files.length + users.length;
+
+        openModal(`
+          <div style="text-align: center;">
+            <div style="
+              width: 72px;
+              height: 72px;
+              margin: 0 auto 20px;
+              border-radius: 50%;
+              background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              <i class="fa-solid fa-exclamation-triangle" style="font-size: 32px; color: var(--danger);"></i>
+            </div>
+            <h3 style="margin: 0 0 12px 0; font-size: 20px;">Permanently Delete Items?</h3>
+            <p style="color: var(--text-muted); margin: 0 0 24px 0;">
+              You are about to permanently delete <strong>${totalCount} item(s)</strong>.<br>
+              This action cannot be undone.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+              <button class="btn-secondary" onclick="closeModal()" style="min-width: 100px;">
+                <i class="fa-solid fa-xmark"></i> Cancel
+              </button>
+              <button class="btn-danger" onclick="executeBulkDeleteArchived(${totalCount})" style="min-width: 100px;">
+                <i class="fa-solid fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        `);
+      }
+
+      async function executeBulkDeleteArchived(totalCount) {
+        closeModal();
+
+        const checkboxes = document.querySelectorAll(
+          ".archive-checkbox:checked"
+        );
 
         const files = [];
         const users = [];
@@ -11882,8 +11949,10 @@ function initSidebarToggle() {
 
         let successCount = 0;
         let errorCount = 0;
+        let processed = 0;
 
-        showToast(`Deleting ${files.length + users.length} item(s)...`, "info");
+        // Show loading overlay
+        showBulkLoading("Deleting items...", `0 / ${totalCount}`);
 
         for (const fileId of files) {
           try {
@@ -11897,6 +11966,8 @@ function initSidebarToggle() {
             console.error(`Error deleting file ${fileId}:`, error);
             errorCount++;
           }
+          processed++;
+          showBulkLoading("Deleting items...", `${processed} / ${totalCount}`);
         }
 
         for (const userId of users) {
@@ -11911,7 +11982,12 @@ function initSidebarToggle() {
             console.error(`Error deleting user ${userId}:`, error);
             errorCount++;
           }
+          processed++;
+          showBulkLoading("Deleting items...", `${processed} / ${totalCount}`);
         }
+
+        // Hide loading overlay
+        hideBulkLoading();
 
         if (successCount > 0) {
           showToast(`Successfully deleted ${successCount} item(s)`, "success");

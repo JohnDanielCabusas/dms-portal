@@ -16,23 +16,22 @@ CREATE TABLE files_backup_unused_columns AS
 SELECT file_id, editable_content, is_editable, current_version, document_type_category_id
 FROM files;
 
--- 2. Back up full file_editors and file_versions tables before dropping
-DROP TABLE IF EXISTS file_editors_backup;
-CREATE TABLE file_editors_backup AS SELECT * FROM file_editors;
+-- 2. Back up full file_editors and file_versions tables before dropping (skip if tables don't exist)
+-- Note: These tables were already removed from your schema
 
-DROP TABLE IF EXISTS file_versions_backup;
-CREATE TABLE file_versions_backup AS SELECT * FROM file_versions;
+-- 3. Drop foreign key constraint and unused columns from files
+ALTER TABLE files
+  DROP FOREIGN KEY files_ibfk_4;
 
--- 3. Drop unused columns from files
 ALTER TABLE files
   DROP COLUMN editable_content,
   DROP COLUMN is_editable,
   DROP COLUMN current_version,
   DROP COLUMN document_type_category_id;
 
--- 4. Drop unused tables
-DROP TABLE file_editors;
-DROP TABLE file_versions;
+-- 4. Drop unused tables (if they exist)
+DROP TABLE IF EXISTS file_editors;
+DROP TABLE IF EXISTS file_versions;
 
 COMMIT;
 

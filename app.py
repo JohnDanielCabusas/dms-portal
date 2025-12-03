@@ -555,10 +555,12 @@ def upload_file():
 
         # Document classification logic
         classification_result = {}
+        detected_document_type = None
         try:
             extracted_text = extract_text_from_file(file_path)
             if extracted_text:
                 document_type = classify_document(extracted_text)
+                detected_document_type = document_type
                 confidence = calculate_confidence(extracted_text, document_type)
                 classification_result = {
                     'document_type': document_type,
@@ -570,6 +572,7 @@ def upload_file():
                 if document_type and document_type != "Unclassified":
                     existing_category = DMSDatabase.get_category_by_name(document_type)
                     if not existing_category:
+                        print(f"DEBUG: Auto-creating category for: {document_type}")
                         DMSDatabase.create_category(
                             name=document_type,
                             description=f"Auto-created category for {document_type}",
@@ -584,15 +587,45 @@ def upload_file():
                 'error': str(e)
             }
         
-        # Create file record in database - set workspace_id to NULL initially
+        # Determine category_id: use provided, or match by document_type/auto-assign Unclassified
+        final_category_id = None
+        if category_id and category_id != 'null':
+            # User explicitly selected a category
+            final_category_id = int(category_id)
+            print(f"DEBUG: Using user-selected category_id: {final_category_id}")
+        elif detected_document_type and detected_document_type != "Unclassified":
+            # Match category by detected document type
+            detected_cat = DMSDatabase.get_category_by_name(detected_document_type)
+            if detected_cat:
+                final_category_id = detected_cat.get('category_id')
+                print(f"DEBUG: Matched category by document_type '{detected_document_type}': category_id={final_category_id}")
+        
+        # Fallback: auto-assign Unclassified category if no category found
+        if not final_category_id:
+            unclassified_cat = DMSDatabase.get_category_by_name('Unclassified')
+            if unclassified_cat:
+                final_category_id = unclassified_cat.get('category_id')
+                print(f"DEBUG: Using Unclassified category: category_id={final_category_id}")
+            else:
+                # Create Unclassified category if it doesn't exist
+                print(f"DEBUG: Creating Unclassified category")
+                cat_id = DMSDatabase.create_category(
+                    name='Unclassified',
+                    description='Default category for unclassified documents',
+                    auto_created=True,
+                    is_unclassified=True
+                )
+                final_category_id = cat_id
+                print(f"DEBUG: Created Unclassified category with id: {final_category_id}")
+        
+        # Create file record in database - workspace_id is not used (file_workspaces table instead)
         file_data = {
             'name': final_filename,
             'original_name': file.filename,
             'size': os.path.getsize(file_path),
             'type': file.filename.rsplit('.', 1)[1].lower(),
             'user_id': user_id,
-            'workspace_id': None,  # Set to NULL - we use file_workspaces table now
-            'category_id': category_id if category_id and category_id != 'null' else None,
+            'category_id': final_category_id,
             'document_type': classification_result.get('document_type'),
             'classification_confidence': classification_result.get('confidence'),
             'classification_error': classification_result.get('error'),
@@ -1514,15 +1547,18 @@ class DMSDatabase:
 
     @staticmethod
     def create_file(file_data):
-        # `workspace_id` was removed from the files table in favor of the
-        # `file_workspaces` many-to-many table. Do not attempt to insert it here.
+        # category_id must NOT be NULL. Enforce it here.
+        category_id = file_data.get('category_id')
+        if not category_id:
+            raise ValueError('category_id is required and cannot be NULL')
+        
         query = """INSERT INTO files (name, original_name, size, type, user_id, category_id, 
                 document_type, classification_confidence, classification_error, text_sample, 
                 shared, file_path, is_encrypted, encryption_version) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         params = (
             file_data['name'], file_data['original_name'], file_data['size'], file_data['type'],
-            file_data['user_id'], file_data.get('category_id'),
+            file_data['user_id'], category_id,
             file_data.get('document_type'), file_data.get('classification_confidence'),
             file_data.get('classification_error'), file_data.get('text_sample'),
             file_data.get('shared', False),
@@ -3442,6 +3478,51 @@ def create_department():
     data = request.json
     department_id = DMSDatabase.create_department(data['name'], data['user_id'])
     return jsonify({'department_id': department_id})
+
+
+@app.route('/api/departments/<int:department_id>', methods=['PUT'])
+def update_department(department_id):
+    try:
+        data = request.json or {}
+        name = data.get('name')
+        user_id = data.get('user_id')
+
+        if not name:
+            return jsonify({'success': False, 'error': 'Name is required'}), 400
+
+        connection = DatabaseConfig.get_connection()
+        cursor = connection.cursor()
+
+        if user_id is None:
+            cursor.execute(
+                "UPDATE departments SET name=%s WHERE department_id=%s",
+                (name, department_id)
+            )
+        else:
+            cursor.execute(
+                "UPDATE departments SET name=%s, user_id=%s WHERE department_id=%s",
+                (name, user_id, department_id)
+            )
+
+        updated_rows = cursor.rowcount
+        connection.commit()
+        cursor.close()
+        connection.close()
+
+        if updated_rows > 0:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Department not found'}), 404
+    except Exception as e:
+        print(f"Error updating department {department_id}: {e}")
+        try:
+            if 'connection' in locals():
+                connection.rollback()
+        except Exception:
+            pass
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'Failed to update department: {str(e)}'}), 500
 
 @app.route('/api/departments/<int:department_id>', methods=['DELETE'])
 def delete_department(department_id):

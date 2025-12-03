@@ -3133,6 +3133,13 @@
         });
       }
 
+      async function updateDepartment(departmentId, departmentData) {
+        return await apiCall(`/departments/${departmentId}`, {
+          method: "PUT",
+          body: departmentData,
+        });
+      }
+
       // Category operations
       async function getAllCategories() {
         return await apiCall("/categories");
@@ -11064,6 +11071,13 @@ function initSidebarToggle() {
           return;
         }
 
+        // First update the department name in the backend
+        const deptUpdateRes = await updateDepartment(departmentId, { name });
+        if (!deptUpdateRes || !deptUpdateRes.success) {
+          showToast("Failed to update department name", "error");
+          return;
+        }
+
         // Get selected members
         const selectedMembers = Array.from(
           document.querySelectorAll("#edDeptSelectedMembers .selected-member")
@@ -11080,8 +11094,6 @@ function initSidebarToggle() {
           }
         }
 
-        // Note: Department name update would require a backend endpoint
-        // For now, we'll just update members
         if (successCount > 0 || selectedMembers.length === 0) {
           showToast("Department updated successfully", "success");
           closeModal();
@@ -11095,7 +11107,8 @@ function initSidebarToggle() {
             });
           }
         } else {
-          showToast("Failed to update department", "error");
+          // Name updated but member updates failed
+          showToast("Department name updated but failed to update members", "warning");
         }
       }
 

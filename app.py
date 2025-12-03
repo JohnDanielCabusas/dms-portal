@@ -1514,13 +1514,15 @@ class DMSDatabase:
 
     @staticmethod
     def create_file(file_data):
-        query = """INSERT INTO files (name, original_name, size, type, user_id, workspace_id, category_id, 
+        # `workspace_id` was removed from the files table in favor of the
+        # `file_workspaces` many-to-many table. Do not attempt to insert it here.
+        query = """INSERT INTO files (name, original_name, size, type, user_id, category_id, 
                 document_type, classification_confidence, classification_error, text_sample, 
                 shared, file_path, is_encrypted, encryption_version) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         params = (
             file_data['name'], file_data['original_name'], file_data['size'], file_data['type'],
-            file_data['user_id'], file_data.get('workspace_id'), file_data.get('category_id'),
+            file_data['user_id'], file_data.get('category_id'),
             file_data.get('document_type'), file_data.get('classification_confidence'),
             file_data.get('classification_error'), file_data.get('text_sample'),
             file_data.get('shared', False),

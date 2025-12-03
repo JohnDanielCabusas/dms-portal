@@ -120,19 +120,37 @@ def classify_document(text):
                 ("thank you for the opportunity", 1), ("grateful", 1),
                 ("transition", 1), ("handover", 1)
             ],
-            "Leave Request Form": [
+            "Leave Request": [
                 # Strong indicators (weight: 3)
                 ("leave request", 3), ("leave application", 3), ("request for leave", 3),
-                # Leave types (weight: 2)
-                ("sick leave", 2), ("vacation", 2), ("annual leave", 2),
-                ("personal leave", 2), ("maternity leave", 2), ("paternity leave", 2),
-                ("medical leave", 2), ("emergency leave", 2),
+                ("application for leave", 3), ("leave form", 3),
+                ("request leave", 3), ("formally request leave", 3),
+                # Leave types (weight: 2.5)
+                ("sick leave", 2.5), ("vacation leave", 2.5), ("annual leave", 2.5),
+                ("personal leave", 2.5), ("maternity leave", 2.5), ("paternity leave", 2.5),
+                ("medical leave", 2.5), ("emergency leave", 2.5), ("casual leave", 2.5),
+                ("bereavement leave", 2.5), ("compassionate leave", 2.5),
                 # Request phrases (weight: 2)
-                ("time off", 2), ("leave of absence", 2), ("dates of leave", 2),
-                ("requesting leave", 2), ("apply for leave", 2),
+                ("time off", 2), ("leave of absence", 2), ("requesting leave", 2), 
+                ("apply for leave", 2), ("applying for", 2),
+                ("request for time off", 2), ("asking for leave", 2),
+                # Date-related terms specific to leave (weight: 2)
+                ("leave from", 2), ("leave dates", 2), ("dates of leave", 2), ("leave period", 2),
+                ("from date", 2), ("to date", 2), ("number of days", 2),
+                # Reasons and context (weight: 1.5)
+                ("due to personal reasons", 1.5), ("personal reasons", 1.5),
+                ("family emergency", 1.5), ("medical reasons", 1.5),
+                ("reason for leave", 1.5), ("responsibilities are managed", 1.5),
+                ("before my leave", 1.5), ("during my absence", 1.5),
+                # Approval & process terms (weight: 1.5)
+                ("approval", 1.5), ("approved by", 1.5),
+                ("supervisor approval", 1.5), ("manager approval", 1.5),
+                ("leave balance", 1.5), ("remaining leave", 1.5),
+                ("hr manager", 1.5), ("understanding and consideration", 1.5),
                 # Other terms (weight: 1)
-                ("from date", 1), ("to date", 1), ("duration", 1),
-                ("reason for leave", 1.5), ("approval", 1)
+                ("duration", 1), ("employee name", 1), ("employee id", 1),
+                ("contact during leave", 1), ("returning to work", 1),
+                ("handing over tasks", 1), ("additional arrangements", 1)
             ],
             "Employee Warning / Disciplinary Action": [
                 # Strong indicators (weight: 3)
@@ -188,9 +206,11 @@ def classify_document(text):
                 highest_score = score
                 best_label = label
         
-        # Require a minimum threshold to avoid false positives
-        # At least 2 matches or a weighted score of 3.0
-        if highest_score < 3.0 and match_counts[best_label] < 2:
+        # Stricter threshold to avoid false positives
+        # Require BOTH: at least 3 keyword matches AND a weighted score of at least 5.0
+        # This prevents invoices with generic words like "date", "email", "address" from being misclassified
+        if highest_score < 5.0 or match_counts[best_label] < 3:
+            logger.info(f"Unclassified (score: {highest_score:.1f}, matches: {match_counts[best_label]})")
             return "Unclassified"
         
         logger.info(f"Classification: {best_label} (score: {highest_score:.1f}, matches: {match_counts[best_label]})")
@@ -207,7 +227,7 @@ def classify_document(text):
 if __name__ == "__main__":
     
     # file path
-    file_to_test = "C:/Users/PLPASIG/Downloads/DMS/OCR file type/dummy-R.docx" 
+    file_to_test = "C:/xampp/htdocs/DMS/OCR file type/Leave-Request.pdf" 
     
     print("--- Document Classification System ---")
     print(f"\nProcessing file: '{file_to_test}'")

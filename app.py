@@ -619,6 +619,23 @@ def upload_file():
                 print(f"DEBUG: Created Unclassified category with id: {final_category_id}")
         
         # Create file record in database - workspace_id is not used (file_workspaces table instead)
+        
+        # Check if file with same name already exists for this user
+        existing_file = DatabaseConfig.execute_query(
+            "SELECT file_id FROM files WHERE name=%s AND user_id=%s AND status='active'",
+            (final_filename, user_id),
+            fetch_one=True
+        )
+        
+        if existing_file:
+            print(f"DEBUG: Duplicate file detected: {final_filename} for user {user_id}")
+            # Clean up the saved file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return jsonify({
+                'error': f'File "{final_filename}" already exists in your library. Please rename and try again.'
+            }), 409  # 409 Conflict status code
+        
         file_data = {
             'name': final_filename,
             'original_name': file.filename,

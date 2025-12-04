@@ -4828,6 +4828,30 @@ function initSidebarToggle() {
         }
       }
 
+      // Check for duplicate file in workspace
+      async function checkDuplicateFileInWorkspace(fileName, workspaceId) {
+        try {
+          const workspaceFiles = await getWorkspaceFiles(workspaceId);
+          const duplicate = workspaceFiles.find((f) => f.name === fileName && f.status === "active");
+          return duplicate !== undefined;
+        } catch (error) {
+          console.error("Error checking workspace duplicate:", error);
+          return false;
+        }
+      }
+
+      // Check for duplicate file in department
+      async function checkDuplicateFileInDepartment(fileName, departmentId) {
+        try {
+          const deptFiles = await apiCall(`/departments/${departmentId}/files`);
+          const duplicate = deptFiles.find((f) => f.name === fileName && f.status === "active");
+          return duplicate !== undefined;
+        } catch (error) {
+          console.error("Error checking department duplicate:", error);
+          return false;
+        }
+      }
+
       // Replace the handleFilesFromModal function
       async function handleFilesFromModal() {
         const fileInput = document.getElementById("fileInputModal");
@@ -4869,24 +4893,73 @@ function initSidebarToggle() {
           return;
         }
 
-        // Check for duplicates and show alert
-        const duplicateFiles = [];
+        // Fetch workspaces and departments for duplicate checking
+        const workspaces = await getAllWorkspaces();
+        const departments = await getAllDepartments();
+
+        // Check for duplicates in personal library and show alert
+        const duplicateInfo = {
+          personal: [],
+          workspaces: [],
+          department: []
+        };
+
         for (const file of files) {
+          // Check personal library
           const isDuplicate = await checkDuplicateFile(
             file.name,
             currentUser.user_id
           );
           if (isDuplicate) {
-            duplicateFiles.push(file.name);
+            duplicateInfo.personal.push(file.name);
+          }
+
+          // Check selected workspaces
+          for (const wsId of selectedWorkspaceIds) {
+            const isDupInWs = await checkDuplicateFileInWorkspace(file.name, wsId);
+            if (isDupInWs) {
+              const workspace = workspaces?.find(w => w.workspace_id === wsId);
+              const wsName = workspace?.name || `Workspace ${wsId}`;
+              if (!duplicateInfo.workspaces.some(item => item.file === file.name && item.workspace === wsName)) {
+                duplicateInfo.workspaces.push({ file: file.name, workspace: wsName });
+              }
+            }
+          }
+
+          // Check department
+          if (departmentId) {
+            const isDupInDept = await checkDuplicateFileInDepartment(file.name, departmentId);
+            if (isDupInDept) {
+              const department = departments?.find(d => d.department_id == departmentId);
+              const deptName = department?.name || `Department ${departmentId}`;
+              if (!duplicateInfo.department.some(item => item.file === file.name && item.dept === deptName)) {
+                duplicateInfo.department.push({ file: file.name, dept: deptName });
+              }
+            }
           }
         }
 
-        if (duplicateFiles.length > 0) {
-          const duplicateList = duplicateFiles.join(", ");
-          const proceed = confirm(
-            `Warning: The following file(s) already exist in the system:\n\n${duplicateList}\n\nWould you like to continue with the upload?`
-          );
+        // Build warning message if duplicates found
+        if (duplicateInfo.personal.length > 0 || duplicateInfo.workspaces.length > 0 || duplicateInfo.department.length > 0) {
+          let warningMsg = "⚠️ Warning: Duplicate file(s) detected:\n\n";
+          
+          if (duplicateInfo.personal.length > 0) {
+            warningMsg += `📚 Personal Library:\n${duplicateInfo.personal.map(f => `  • ${f}`).join("\n")}\n\n`;
+          }
+
+          if (duplicateInfo.workspaces.length > 0) {
+            warningMsg += `👥 Workspaces:\n${duplicateInfo.workspaces.map(item => `  • ${item.file} (in ${item.workspace})`).join("\n")}\n\n`;
+          }
+
+          if (duplicateInfo.department.length > 0) {
+            warningMsg += `🏢 Department:\n${duplicateInfo.department.map(item => `  • ${item.file} (in ${item.dept})`).join("\n")}\n\n`;
+          }
+
+          warningMsg += "Would you like to continue with the upload?";
+
+          const proceed = confirm(warningMsg);
           if (!proceed) {
+            showToast("Upload cancelled", "info");
             return;
           }
         }
@@ -4929,12 +5002,31 @@ function initSidebarToggle() {
                 `Uploaded: ${file.name} to ${selectedWorkspaceIds.length} workspace(s)`,
                 "success"
               );
+            } else if (departmentId) {
+              showToast(`Uploaded: ${file.name} to department`, "success");
             } else {
               showToast(`Uploaded: ${file.name}`, "success");
             }
           } catch (err) {
             console.error("Error uploading file:", file.name, err);
-            showToast(`Failed to upload: ${file.name}`, "error");
+            
+            // Check if error is due to duplicate filename
+            if (err.message && err.message.includes("already exists")) {
+              showToast(
+                `Failed to upload: "${file.name}" already exists. Please rename and try again.`,
+                "error"
+              );
+            } else if (err.message && err.message.includes("duplicate")) {
+              showToast(
+                `Failed to upload: "${file.name}" (file already exists in system or selected location)`,
+                "error"
+              );
+            } else {
+              showToast(
+                `Failed to upload: ${file.name} - ${err.message || "Unknown error"}`,
+                "error"
+              );
+            }
             errors++;
           }
         }

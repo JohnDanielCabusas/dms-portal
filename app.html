@@ -3035,14 +3035,16 @@
           const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
+            throw new Error(errorMessage);
           }
 
           return await response.json();
         } catch (error) {
-          console.error("API call failed:", error);
-          showToast("Database operation failed", "error");
-          return null;
+          console.error(`API call failed on ${endpoint}:`, error);
+          // Return error object instead of null for better error handling
+          return { error: error.message || "Database operation failed", success: false };
         }
       }
 
@@ -12374,6 +12376,22 @@ function initSidebarToggle() {
         const maxFileMB = Number(document.getElementById("settingMax").value);
         const allowedTypes = document.getElementById("settingTypes").value;
 
+        // Validation
+        if (!company.trim()) {
+          showToast("Company name is required", "error");
+          return;
+        }
+
+        if (isNaN(maxFileMB) || maxFileMB <= 0) {
+          showToast("Max file size must be a positive number", "error");
+          return;
+        }
+
+        if (!allowedTypes.trim()) {
+          showToast("Allowed file types are required", "error");
+          return;
+        }
+
         // If there's a pending logo file, upload it first
         if (pendingLogoFile) {
           try {
@@ -12411,17 +12429,24 @@ function initSidebarToggle() {
           }
         }
 
-        const result = await updateSettings({
+        // Build settings object - only include company_logo if it exists
+        const settingsToSave = {
           company: company,
           max_file_mb: maxFileMB,
           allowed_types: allowedTypes,
-          company_logo: cachedSettings
-            ? cachedSettings.company_logo
-            : undefined,
-        });
+        };
+        
+        // Only add company_logo if we have cached settings with a logo
+        if (cachedSettings && cachedSettings.company_logo) {
+          settingsToSave.company_logo = cachedSettings.company_logo;
+        }
+
+        console.log("Saving settings:", settingsToSave);
+        const result = await updateSettings(settingsToSave);
+        console.log("Settings save result:", result);
 
         if (result && result.success) {
-          showToast("Settings saved", "success");
+          showToast("Settings saved successfully", "success");
 
           const currentUser = await getCurrentUser();
           if (currentUser) {
@@ -12431,12 +12456,20 @@ function initSidebarToggle() {
             });
           }
 
-          // Refresh branding for all views
+          // Force refresh settings from database to verify changes
+          await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay to ensure DB commit
           const fresh = await getSettings();
-          if (fresh) {
+          console.log("Fresh settings after save:", fresh);
+          
+          if (fresh && !fresh.error) {
             cachedSettings = fresh;
             applyBrandingFromSettings(fresh);
             updateSettingsLogoPreview(fresh);
+
+            // Update form fields with confirmed values from DB
+            document.getElementById("settingCompany").value = fresh.company || "";
+            document.getElementById("settingMax").value = fresh.max_file_mb || 50;
+            document.getElementById("settingTypes").value = fresh.allowed_types || "";
 
             // Clear pending file indicator
             const fileNameLabel = document.getElementById(
@@ -12446,6 +12479,8 @@ function initSidebarToggle() {
               fileNameLabel.textContent = "Current logo";
             }
           }
+        } else {
+          showToast(result?.error || "Failed to save settings", "error");
         }
       }
 

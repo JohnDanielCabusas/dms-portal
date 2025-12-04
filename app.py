@@ -2108,21 +2108,14 @@ class DMSDatabase:
         """
         Update core system settings. If company_logo is None, the existing logo
         is preserved to avoid accidentally clearing it.
+        Note: updated_by parameter is accepted but not stored (column doesn't exist in DB)
         """
         if company_logo is None:
-            if updated_by is None:
-                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s WHERE settings_id=6001"
-                params = (company, max_file_mb, allowed_types)
-            else:
-                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, updated_by=%s WHERE settings_id=6001"
-                params = (company, max_file_mb, allowed_types, updated_by)
+            query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s WHERE settings_id=6001"
+            params = (company, max_file_mb, allowed_types)
         else:
-            if updated_by is None:
-                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, company_logo=%s WHERE settings_id=6001"
-                params = (company, max_file_mb, allowed_types, company_logo)
-            else:
-                query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, company_logo=%s, updated_by=%s WHERE settings_id=6001"
-                params = (company, max_file_mb, allowed_types, company_logo, updated_by)
+            query = "UPDATE settings SET company=%s, max_file_mb=%s, allowed_types=%s, company_logo=%s WHERE settings_id=6001"
+            params = (company, max_file_mb, allowed_types, company_logo)
         return DatabaseConfig.execute_query(query, params)
 
     @staticmethod
@@ -3697,17 +3690,37 @@ def get_settings():
 
 @app.route('/api/settings', methods=['PUT'])
 def update_settings():
-    data = request.json
-    current_user = get_request_user()
-    updated_by = current_user.get('user_id') if current_user else None
-    DMSDatabase.update_settings(
-        data['company'],
-        data['max_file_mb'],
-        data['allowed_types'],
-        data.get('company_logo'),
-        updated_by
-    )
-    return jsonify({'success': True})
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        if 'company' not in data or 'max_file_mb' not in data or 'allowed_types' not in data:
+            return jsonify({'error': 'Missing required fields: company, max_file_mb, allowed_types'}), 400
+        
+        current_user = get_request_user()
+        updated_by = current_user.get('user_id') if current_user else None
+        
+        result = DMSDatabase.update_settings(
+            data['company'],
+            data['max_file_mb'],
+            data['allowed_types'],
+            data.get('company_logo'),
+            updated_by
+        )
+        
+        # execute_query returns None on success for UPDATE statements
+        # Only False indicates a database connection error
+        if result is False:
+            return jsonify({'error': 'Failed to update settings in database'}), 500
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"Error updating settings: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to update settings: {str(e)}'}), 500
 
 
 @app.route('/api/settings/logo', methods=['POST'])

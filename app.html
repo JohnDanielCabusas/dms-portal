@@ -3231,6 +3231,7 @@
       let sidebarCollapsed = false;
       let currentWorkspaceId = null;
       let modalWorkspaceContext = null; // Track workspace context when modal is open
+      let modalDepartmentContext = null; // Track department context when modal is open
       let categoriesSortOrder = "asc";
       let currentUserData = null;
       let cachedSettings = null;
@@ -7330,6 +7331,11 @@ function initSidebarToggle() {
           file = modalWorkspaceContext.files.find((f) => f.file_id === fileId);
         }
         
+        // Also check modal department context (when viewing from department modal)
+        if (!file && modalDepartmentContext?.files) {
+          file = modalDepartmentContext.files.find((f) => f.file_id === fileId);
+        }
+        
         if (!file) {
           showToast("File not found", "error");
           return;
@@ -7442,6 +7448,10 @@ function initSidebarToggle() {
                   </div>
                 </div>
                 <div style="display:flex;gap:8px">
+                  ${modalDepartmentContext ? `
+                  <button class="btn-secondary" onclick="backToDepartmentModal()">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Department
+                  </button>` : ''}
                   <button class="icon-btn" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
                 </div>
               </div>
@@ -10765,12 +10775,15 @@ function initSidebarToggle() {
           deptUsers = deptUsers.filter((u) => u.role === "staff");
         }
 
-        // Get files for this department (files uploaded by department users)
-        const allFiles = await getAllFiles();
-        const departmentFiles = allFiles.filter((f) => {
-          const fileUser = users.find((u) => u.user_id === f.user_id);
-          return fileUser && fileUser.department_id === departmentId;
-        });
+        // Get files for this department (uploaded by members + shared with department)
+        const departmentFiles = await apiCall(`/departments/${departmentId}/files`) || [];
+
+        // Set modal context so file preview knows to show "Back to Department" button
+        modalDepartmentContext = {
+          departmentId: departmentId,
+          departmentName: department.name,
+          files: departmentFiles
+        };
 
         // Build users HTML
         const usersHtml =
@@ -10797,6 +10810,10 @@ function initSidebarToggle() {
                       : "Staff"
                   }</div>
                       </div>
+                      ${currentUser?.role === "department_admin" && currentUser.department_id === departmentId ? `
+                      <button class="icon-btn" onclick="event.stopPropagation(); removeDepartmentMember(${user.user_id}, ${departmentId}, '${escapeHtml(user.name).replace(/'/g, "\\'")}');" title="Remove member" style="color:var(--danger);">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>` : ''}
                     </div>
                   `
                 )
@@ -10810,7 +10827,7 @@ function initSidebarToggle() {
                 .slice(0, 10)
                 .map(
                   (file) => `
-                    <div style="display:flex;align-items:center;gap:12px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;transition:background 0.2s;"
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:6px;transition:background 0.2s;"
                          onmouseover="this.style.background='var(--bg-hover)'"
                          onmouseout="this.style.background='transparent'"
                          onclick="openFilePreview(${file.file_id})">
@@ -10823,13 +10840,24 @@ function initSidebarToggle() {
                           2
                         )} KB • ${new Date(
                     file.created_at
-                  ).toLocaleDateString()}</div>
+                  ).toLocaleDateString()}${file.source_type === 'shared' ? ' • <span style="color:var(--accent);">Shared</span>' : ''}</div>
                       </div>
                       <button class="icon-btn" onclick="event.stopPropagation(); openFilePreview(${
                         file.file_id
                       })" title="Preview">
                         <i class="fa-solid fa-eye"></i>
                       </button>
+                      <button class="icon-btn" onclick="event.stopPropagation(); downloadFileDirectly(${
+                        file.file_id
+                      })" title="Download">
+                        <i class="fa-solid fa-download"></i>
+                      </button>
+                      ${file.source_type === 'shared' && file.share_id ? `
+                      <button class="icon-btn" onclick="event.stopPropagation(); removeFileFromDepartment(${
+                        file.share_id
+                      }, ${departmentId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}');" title="Remove from department" style="color:var(--danger);">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>` : ''}
                     </div>
                   `
                 )
@@ -10897,6 +10925,65 @@ function initSidebarToggle() {
                   }
                 </div>
               </div>`);
+      }
+
+      async function removeDepartmentMember(userId, departmentId, memberName) {
+        if (!confirm(`Remove "${memberName}" from this department?`)) {
+          return;
+        }
+
+        try {
+          const result = await updateUser(userId, { department_id: null });
+
+          if (result && result.success) {
+            showToast(`"${memberName}" removed from department`, "success");
+            closeModal();
+            // Reopen the department modal to refresh the member list
+            await openDepartmentModal(departmentId);
+          } else {
+            showToast(result?.error || "Failed to remove member", "error");
+          }
+        } catch (error) {
+          console.error("Error removing department member:", error);
+          showToast("Failed to remove member", "error");
+        }
+      }
+
+      async function backToDepartmentModal() {
+        if (!modalDepartmentContext) {
+          closeModal();
+          return;
+        }
+        
+        const departmentId = modalDepartmentContext.departmentId;
+        closeModal();
+        // Small delay to allow modal to close before reopening
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await openDepartmentModal(departmentId);
+      }
+
+      async function removeFileFromDepartment(shareId, departmentId, fileName) {
+        if (!confirm(`Remove "${fileName}" from this department?`)) {
+          return;
+        }
+
+        try {
+          const result = await apiCall(`/file-shares/${shareId}`, {
+            method: 'DELETE'
+          });
+
+          if (result && result.success) {
+            showToast(`"${fileName}" removed from department`, "success");
+            closeModal();
+            // Reopen the modal to refresh the file list
+            await openDepartmentModal(departmentId);
+          } else {
+            showToast(result?.error || "Failed to remove file from department", "error");
+          }
+        } catch (error) {
+          console.error("Error removing file from department:", error);
+          showToast("Failed to remove file from department", "error");
+        }
       }
 
       async function openEditDepartment(departmentId, departmentName) {
@@ -10976,10 +11063,20 @@ function initSidebarToggle() {
                 <input id="ed_dept_name" placeholder="Department name" value="${departmentName.replace(
                   /"/g,
                   "&quot;"
-                )}"/>
+                )}" data-original-name="${departmentName.replace(/"/g, "&quot;")}" ${currentUser?.role === "department_admin" ? 'readonly style="background:var(--bg-alt);cursor:not-allowed;opacity:0.7;"' : ''}/>
               </div>
               <div class="form-row">
                 <label>Members</label>
+                ${currentUser?.role === "department_admin" ? `
+                <div class="multi-select-container">
+                  <input id="ed_dept_member_search" placeholder="Search members..." oninput="filterEditDeptMemberOptions()"/>
+                  <div class="multi-select-dropdown" id="edDeptMemberDropdown" style="display:none;">
+                    ${userOptions}
+                  </div>
+                </div>
+                <div class="multi-select-selected" id="edDeptSelectedMembers">
+                  ${currentMembersHTML}
+                </div>` : `
                 <div class="multi-select-container">
                   <input id="ed_dept_member_search" placeholder="Search users to add..." oninput="filterEditDeptMemberOptions()"/>
                   <div class="multi-select-dropdown" id="edDeptMemberDropdown">
@@ -10989,7 +11086,7 @@ function initSidebarToggle() {
                 <div class="multi-select-selected" id="edDeptSelectedMembers">
                   ${currentMembersHTML}
                 </div>
-                <div class="small-muted">Click users above to add them to this department. You can remove any member.</div>
+                <div class="small-muted">Click users above to add them to this department. You can remove any member.</div>`}
               </div>
               <div style="display:flex;gap:12px;justify-content:flex-end">
                 <button class="btn-secondary" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Cancel</button>
@@ -10997,10 +11094,10 @@ function initSidebarToggle() {
               </div>
             </div>`);
 
-        // Initialize member selection
+        // Initialize member selection (only for system_admin)
         setTimeout(() => {
           const searchInput = document.getElementById("ed_dept_member_search");
-          if (searchInput) {
+          if (searchInput && currentUser?.role !== "department_admin") {
             searchInput.addEventListener("focus", function () {
               document
                 .getElementById("edDeptMemberDropdown")
@@ -11008,14 +11105,17 @@ function initSidebarToggle() {
             });
           }
 
-          document
-            .querySelectorAll("#edDeptMemberDropdown .multi-select-option")
-            .forEach((option) => {
-              option.addEventListener("click", function () {
-                const memberId = this.getAttribute("data-id");
-                addMemberToEditDepartment(memberId, departmentId);
+          // Only attach click handlers if user is NOT department_admin
+          if (currentUser?.role !== "department_admin") {
+            document
+              .querySelectorAll("#edDeptMemberDropdown .multi-select-option")
+              .forEach((option) => {
+                option.addEventListener("click", function () {
+                  const memberId = this.getAttribute("data-id");
+                  addMemberToEditDepartment(memberId, departmentId);
+                });
               });
-            });
+          }
         }, 100);
 
         // Store department ID for member functions
@@ -11125,11 +11225,16 @@ function initSidebarToggle() {
           return;
         }
 
-        // First update the department name in the backend
-        const deptUpdateRes = await updateDepartment(departmentId, { name });
-        if (!deptUpdateRes || !deptUpdateRes.success) {
-          showToast("Failed to update department name", "error");
-          return;
+        // Get the original department name from stored value
+        const originalName = document.getElementById("ed_dept_name").getAttribute("data-original-name");
+        
+        // Only update department name if it has changed
+        if (originalName !== name) {
+          const deptUpdateRes = await updateDepartment(departmentId, { name });
+          if (!deptUpdateRes || !deptUpdateRes.success) {
+            showToast("Failed to update department name", "error");
+            return;
+          }
         }
 
         // Get selected members
@@ -12657,6 +12762,9 @@ function initSidebarToggle() {
 
         // Clear workspace modal context
         modalWorkspaceContext = null;
+        
+        // Clear department modal context
+        modalDepartmentContext = null;
 
         // Restore body scroll
         document.body.classList.remove("modal-open");

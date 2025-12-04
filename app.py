@@ -3037,6 +3037,48 @@ def delete_file_share(share_id):
         print(f"Error deleting file share: {str(e)}")
         return jsonify({'success': False, 'error': f'Failed to remove share: {str(e)}'}), 500
 
+@app.route('/api/departments/<int:department_id>/files', methods=['GET'])
+def get_department_files(department_id):
+    """Get all files for a department (uploaded by members + shared with department)"""
+    try:
+        # Get files uploaded by department members
+        query_uploaded = """
+            SELECT DISTINCT f.*, u.name as owner_name, c.name as category_name,
+                   NULL as share_id, 'uploaded' as source_type
+            FROM files f 
+            LEFT JOIN users u ON f.user_id = u.user_id 
+            LEFT JOIN categories c ON f.category_id = c.category_id
+            WHERE u.department_id = %s AND f.status = 'active'
+        """
+        uploaded_files = DatabaseConfig.execute_query(query_uploaded, (department_id,), fetch=True) or []
+        
+        # Get files shared with this department (include share_id for removal)
+        query_shared = """
+            SELECT DISTINCT f.*, u.name as owner_name, c.name as category_name,
+                   fs.share_id, 'shared' as source_type
+            FROM files f 
+            LEFT JOIN users u ON f.user_id = u.user_id 
+            LEFT JOIN categories c ON f.category_id = c.category_id
+            INNER JOIN file_shares fs ON f.file_id = fs.file_id
+            WHERE fs.shared_with_department_id = %s AND f.status = 'active'
+        """
+        shared_files = DatabaseConfig.execute_query(query_shared, (department_id,), fetch=True) or []
+        
+        # Combine and deduplicate by file_id (prioritize uploaded over shared)
+        file_map = {}
+        for file in shared_files:
+            file_map[file['file_id']] = dict(file)
+        for file in uploaded_files:
+            file_map[file['file_id']] = dict(file)
+        
+        all_files = list(file_map.values())
+        return jsonify(all_files)
+    except Exception as e:
+        print(f"Error getting department files: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Failed to get department files: {str(e)}'}), 500
+
 @app.route('/api/files/<int:file_id>', methods=['PUT'])
 def update_file(file_id):
     try:
@@ -3478,34 +3520,36 @@ def update_department(department_id):
     try:
         data = request.json or {}
         name = data.get('name')
-        user_id = data.get('user_id')
-
-        if not name:
-            return jsonify({'success': False, 'error': 'Name is required'}), 400
 
         connection = DatabaseConfig.get_connection()
         cursor = connection.cursor()
 
-        if user_id is None:
-            cursor.execute(
-                "UPDATE departments SET name=%s WHERE department_id=%s",
-                (name, department_id)
-            )
-        else:
-            cursor.execute(
-                "UPDATE departments SET name=%s, user_id=%s WHERE department_id=%s",
-                (name, user_id, department_id)
-            )
+        # Check if department exists first
+        cursor.execute("SELECT department_id FROM departments WHERE department_id=%s", (department_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            connection.close()
+            return jsonify({'success': False, 'error': 'Department not found'}), 404
 
-        updated_rows = cursor.rowcount
-        connection.commit()
+        # Only update if name is provided
+        if name:
+            user_id = data.get('user_id')
+            if user_id is None:
+                cursor.execute(
+                    "UPDATE departments SET name=%s WHERE department_id=%s",
+                    (name, department_id)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE departments SET name=%s, user_id=%s WHERE department_id=%s",
+                    (name, user_id, department_id)
+                )
+            connection.commit()
+
         cursor.close()
         connection.close()
 
-        if updated_rows > 0:
-            return jsonify({'success': True})
-        else:
-            return jsonify({'success': False, 'error': 'Department not found'}), 404
+        return jsonify({'success': True})
     except Exception as e:
         print(f"Error updating department {department_id}: {e}")
         try:

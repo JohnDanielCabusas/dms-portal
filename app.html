@@ -8845,13 +8845,23 @@ function initSidebarToggle() {
       }
 
       // User Management
+      let isRenderingUsers = false;
+      
       async function renderUsers() {
-        const tbody = document.querySelector("#usersTable tbody");
-        tbody.innerHTML = "";
+        // Prevent concurrent render calls
+        if (isRenderingUsers) {
+          console.log("[DEBUG] renderUsers already in progress, skipping duplicate call");
+          return;
+        }
+        
+        isRenderingUsers = true;
+        try {
+          const tbody = document.querySelector("#usersTable tbody");
+          tbody.innerHTML = "";
 
-        const users = await getAllUsers();
-        const departments = await getAllDepartments();
-        const currentUser = await getCurrentUser();
+          const users = await getAllUsers();
+          const departments = await getAllDepartments();
+          const currentUser = await getCurrentUser();
 
         if (currentUser?.role === "staff") {
           tbody.innerHTML =
@@ -8874,6 +8884,16 @@ function initSidebarToggle() {
           if (currentDeptValue) deptFilter.value = currentDeptValue;
         }
 
+        // Remove duplicates FIRST
+        const uniqueUsers = [];
+        const seenUserIds = new Set();
+        users.forEach((user) => {
+          if (!seenUserIds.has(user.user_id)) {
+            seenUserIds.add(user.user_id);
+            uniqueUsers.push(user);
+          }
+        });
+
         // Get filter values
         const search = (document.getElementById("searchUsers")?.value || "")
           .toLowerCase()
@@ -8886,15 +8906,15 @@ function initSidebarToggle() {
           document.getElementById("filterUserDept")?.value || "";
         const sortBy = document.getElementById("sortUsers")?.value || "id";
 
-        // Calculate statistics scoped to current role
+        // Calculate statistics scoped to current role (using deduplicated users)
         const statsScope =
           currentUser && currentUser.role === "department_admin"
-            ? users.filter(
+            ? uniqueUsers.filter(
                 (u) =>
                   u.department_id === currentUser.department_id &&
                   u.role === "staff"
               )
-            : users;
+            : uniqueUsers;
         const totalUsers = statsScope.length;
         const activeUsers = statsScope.filter(
           (u) => u.status === "active"
@@ -8909,16 +8929,6 @@ function initSidebarToggle() {
         if (totalCountEl) totalCountEl.textContent = totalUsers;
         if (activeCountEl) activeCountEl.textContent = activeUsers;
         if (archivedCountEl) archivedCountEl.textContent = archivedUsers;
-
-        // Remove duplicates
-        const uniqueUsers = [];
-        const seenUserIds = new Set();
-        users.forEach((user) => {
-          if (!seenUserIds.has(user.user_id)) {
-            seenUserIds.add(user.user_id);
-            uniqueUsers.push(user);
-          }
-        });
 
         // Apply filters
         let filteredUsers = uniqueUsers;
@@ -9050,6 +9060,9 @@ function initSidebarToggle() {
           `;
           tbody.appendChild(tr);
         });
+        } finally {
+          isRenderingUsers = false;
+        }
       }
 
       // Add user deletion function

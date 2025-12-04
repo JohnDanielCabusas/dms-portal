@@ -1381,7 +1381,7 @@ class DMSDatabase:
 
     @staticmethod
     def get_all_users():
-        query = "SELECT u.*, d.name as department_name FROM users u LEFT JOIN departments d ON u.department_id = d.department_id"
+        query = "SELECT * FROM users"
         return DatabaseConfig.execute_query(query, fetch=True)
 
     @staticmethod

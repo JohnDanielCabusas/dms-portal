@@ -3654,6 +3654,10 @@ function initSidebarToggle() {
             } else if (!imageUrl.startsWith("http")) {
               imageUrl = API_BASE_URL.replace("/api", "") + "/" + imageUrl;
             }
+            // Add cache-bust parameter to force reload
+            const cacheBust = new Date().getTime();
+            imageUrl = imageUrl + (imageUrl.includes("?") ? "&" : "?") + "_cb=" + cacheBust;
+            
             topAvatar.innerHTML = `<img src="${imageUrl}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.innerHTML='${user.name
               .split(" ")
               .map((s) => s[0])
@@ -3764,16 +3768,21 @@ function initSidebarToggle() {
       }
 
       function closeUserSettings() {
-        if (tempProfileImage && originalProfileImage !== tempProfileImage) {
-          getCurrentUser().then((user) => {
-            if (user) {
-              updateProfileImageDisplay(originalProfileImage, user.name);
-            }
-          });
-        }
-
+        // Only revert the profile image if it was changed but NOT saved
+        // (i.e., user made changes but didn't click Save)
+        // If the user clicked Save, saveUserSettings() already updated the display
+        // So we should NOT revert here
+        
         tempProfileImage = null;
         originalProfileImage = null;
+        pendingProfileImageFile = null;
+        
+        // Clear the file input
+        const fileInput = document.getElementById("profileImageInput");
+        if (fileInput) {
+          fileInput.value = "";
+        }
+        
         document.getElementById("userSettingsModal").style.display = "none";
       }
 
@@ -3797,13 +3806,22 @@ function initSidebarToggle() {
         }
 
         if (profileImage) {
-          // Ensure image URL is absolute
           let imageUrl = profileImage;
-          if (imageUrl.startsWith("/")) {
-            imageUrl = API_BASE_URL.replace("/api", "") + imageUrl;
-          } else if (!imageUrl.startsWith("http")) {
-            imageUrl = API_BASE_URL.replace("/api", "") + "/" + imageUrl;
+          
+          // Only add cache-bust for server URLs, not for data URLs
+          if (!imageUrl.startsWith("data:")) {
+            // Ensure image URL is absolute
+            if (imageUrl.startsWith("/")) {
+              imageUrl = API_BASE_URL.replace("/api", "") + imageUrl;
+            } else if (!imageUrl.startsWith("http")) {
+              imageUrl = API_BASE_URL.replace("/api", "") + "/" + imageUrl;
+            }
+            
+            // Add cache-bust parameter to force reload after updates
+            const cacheBust = new Date().getTime();
+            imageUrl = imageUrl + (imageUrl.includes("?") ? "&" : "?") + "_cb=" + cacheBust;
           }
+          
           profileImageDisplay.innerHTML = `<img src="${imageUrl}" alt="Profile" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.parentElement.innerHTML='${userName
             .split(" ")
             .map((s) => s[0])
@@ -3843,7 +3861,9 @@ function initSidebarToggle() {
       function removeProfileImage() {
         if (!confirm("Remove profile image?")) return;
 
-        tempProfileImage = null;
+        // Use a special marker to indicate the image should be removed
+        tempProfileImage = "__REMOVE__";
+        pendingProfileImageFile = null;
 
         getCurrentUser().then((user) => {
           if (user) {
@@ -3851,100 +3871,50 @@ function initSidebarToggle() {
               null,
               document.getElementById("userNameInput").value || user.name
             );
-            showToast("Profile image removed. Don't forget to save changes!");
+            showToast("Profile image removed. Click 'Save Changes' to apply.", "info");
           }
         });
       }
 
-      async function handleProfileImageUpload(event) {
+      // Store pending profile image file to be uploaded when user clicks save
+      let pendingProfileImageFile = null;
+
+      function handleProfileImageUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
 
         if (!file.type.startsWith("image/")) {
-          showToast("Please select a valid image file");
+          showToast("Please select a valid image file", "error");
           return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
-          showToast("Image size should be less than 5MB");
+          showToast("Image size should be less than 5MB", "error");
           return;
         }
 
-        const user = await getCurrentUser();
-        if (!user) {
-          showToast("User not found", "error");
-          return;
-        }
+        // Store the file for later upload when user saves
+        pendingProfileImageFile = file;
 
-        // Upload image to server
-        showToast("Uploading profile image...", "info");
-
-        const formData = new FormData();
-        formData.append("image", file);
-        formData.append("user_id", user.user_id);
-
-        try {
-          const response = await authFetch(
-            `${API_BASE_URL}/upload-profile-image`,
-            {
-              method: "POST",
-              body: formData,
-            }
+        // Create a local preview using FileReader
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          // Mark as pending (not yet saved)
+          // Store the data URL as pending temp image
+          tempProfileImage = e.target.result;
+          const user = currentUserData || { name: "User" };
+          updateProfileImageDisplay(
+            tempProfileImage,
+            document.getElementById("userNameInput").value || user.name
           );
+          showToast("Profile image selected. Click 'Save Changes' to apply.", "info");
+        };
+        reader.readAsDataURL(file);
 
-          // Check if response is OK
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Upload error response:", errorText);
-            showToast(
-              "Failed to upload profile image: " +
-                (errorText || response.statusText),
-              "error"
-            );
-            return;
-          }
-
-          // Check content type
-          const contentType = response.headers.get("content-type");
-          if (!contentType || !contentType.includes("application/json")) {
-            const errorText = await response.text();
-            console.error("Non-JSON response:", errorText);
-            showToast("Server error: Invalid response format", "error");
-            return;
-          }
-
-          const result = await response.json();
-
-          if (result && result.success && result.image_url) {
-            // Construct full URL for the image
-            let imageUrl = result.image_url;
-            if (imageUrl.startsWith("/")) {
-              imageUrl = API_BASE_URL.replace("/api", "") + imageUrl;
-            } else if (!imageUrl.startsWith("http")) {
-              imageUrl = API_BASE_URL.replace("/api", "") + "/" + imageUrl;
-            }
-            tempProfileImage = imageUrl;
-            updateProfileImageDisplay(
-              tempProfileImage,
-              document.getElementById("userNameInput").value || user.name
-            );
-            showToast(
-              "Profile image uploaded. Don't forget to save changes!",
-              "success"
-            );
-          } else {
-            showToast(
-              result.error || "Failed to upload profile image",
-              "error"
-            );
-          }
-        } catch (error) {
-          console.error("Error uploading profile image:", error);
-          showToast(
-            "Failed to upload profile image: " +
-              (error.message || "Network error"),
-            "error"
-          );
+        // Update the file input label to indicate a file is selected
+        const fileNameLabel = document.getElementById("profileImageInput");
+        if (fileNameLabel) {
+          fileNameLabel.title = file.name;
         }
       }
 
@@ -4008,6 +3978,73 @@ function initSidebarToggle() {
           }
         }
 
+        // Handle profile image changes
+        let imageWasChanged = false;
+        
+        // If there's a pending profile image file to upload
+        if (pendingProfileImageFile) {
+          try {
+            showToast("Uploading profile image...", "info");
+            const formData = new FormData();
+            formData.append("image", pendingProfileImageFile);
+            formData.append("user_id", user.user_id);
+
+            const response = await authFetch(
+              `${API_BASE_URL}/upload-profile-image`,
+              {
+                method: "POST",
+                body: formData,
+              }
+            );
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error("Upload error response:", errorText);
+              showToast(
+                "Failed to upload profile image: " +
+                  (errorText || response.statusText),
+                "error"
+              );
+              return;
+            }
+
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+              const errorText = await response.text();
+              console.error("Non-JSON response:", errorText);
+              showToast("Server error: Invalid response format", "error");
+              return;
+            }
+
+            const result = await response.json();
+
+            if (result && result.success && result.image_token) {
+              // Image uploaded successfully - the backend already updated the database
+              // No need to send profile_image in the user update
+              imageWasChanged = true;
+              pendingProfileImageFile = null;
+              // Show local preview
+              if (result.image_url) {
+                tempProfileImage = result.image_url;
+              }
+            } else {
+              showToast(
+                result.error || "Failed to upload profile image",
+                "error"
+              );
+              return;
+            }
+          } catch (error) {
+            console.error("Error uploading profile image:", error);
+            showToast(
+              "Failed to upload profile image: " +
+                (error.message || "Network error"),
+              "error"
+            );
+            return;
+          }
+        }
+
         const updateData = {
           name: name,
           email: email,
@@ -4016,9 +4053,10 @@ function initSidebarToggle() {
           status: user.status,
         };
 
-        // Profile image is already uploaded and URL is stored in tempProfileImage
-        if (tempProfileImage !== undefined) {
-          updateData.profile_image = tempProfileImage;
+        // Only send profile_image update if it was explicitly removed (not if just uploaded)
+        // __REMOVE__ marker means user clicked remove button
+        if (tempProfileImage === "__REMOVE__") {
+          updateData.profile_image = null;  // Explicitly remove the image
         }
 
         if (newPassword) {
@@ -4028,11 +4066,25 @@ function initSidebarToggle() {
         const result = await updateUser(user.user_id, updateData);
         if (result && result.success) {
           showToast("User settings saved successfully", "success");
-          closeUserSettings();
 
-          // Refresh user data
+          // Clear pending profile image file
+          pendingProfileImageFile = null;
+
+          // Small delay to ensure database commit is complete
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Refresh user data from database
           const updatedUser = await getCurrentUser();
           updateTopUser(updatedUser);
+
+          // Update the modal display with the fresh data from database
+          if (updatedUser) {
+            originalProfileImage = updatedUser.profile_image || null;
+            tempProfileImage = null;
+            updateProfileImageDisplay(updatedUser.profile_image, updatedUser.name);
+          }
+
+          closeUserSettings();
         }
       }
 

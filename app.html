@@ -8451,15 +8451,8 @@ function initSidebarToggle() {
                   <h4 style="margin-bottom:12px;font-size:16px;">Files (${
                     workspaceFiles.length
                   })</h4>
-                  <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+                  <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
                     ${filesHtml}
-                    ${
-                      workspaceFiles.length > 10
-                        ? `<div class="small-muted" style="text-align:center;padding:12px;">... and ${
-                            workspaceFiles.length - 10
-                          } more files</div>`
-                        : ""
-                    }
                   </div>
                 </div>
 
@@ -10884,15 +10877,8 @@ function initSidebarToggle() {
                   <h4 style="margin-bottom:12px;font-size:16px;">Files (${
                     departmentFiles.length
                   })</h4>
-                  <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+                  <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
                     ${filesHtml}
-                    ${
-                      departmentFiles.length > 10
-                        ? `<div class="small-muted" style="text-align:center;padding:12px;">... and ${
-                            departmentFiles.length - 10
-                          } more files</div>`
-                        : ""
-                    }
                   </div>
                 </div>
 

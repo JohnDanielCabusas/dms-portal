@@ -12629,7 +12629,7 @@ function initSidebarToggle() {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-
+    
           const result = await response.json();
 
           if (result.error) {
@@ -12639,7 +12639,7 @@ function initSidebarToggle() {
               confidence: result.confidence || "Low",
               error: result.error,
             };
-          }
+          }  
 
           return {
             documentType: result.documentType,

@@ -1,17 +1,21 @@
 import mysql.connector
 from mysql.connector import Error
+import os  # <--- IMPORTANT: This allows reading variables from Render
 
 class DatabaseConfig:
     @staticmethod
     def get_connection():
         try:
+            # Check if we are running in the cloud (DB_HOST will exist)
+            # If not, fall back to your specific local settings
             connection = mysql.connector.connect(
-                host='localhost',
-                database='db_dms',
-                user='root',
-                password='admin5002',
-                port=3306,
-                auth_plugin='mysql_native_password'
+                host=os.environ.get('DB_HOST', 'localhost'),
+                database=os.environ.get('DB_NAME', 'db_dms'),
+                user=os.environ.get('DB_USER', 'root'),
+                password=os.environ.get('DB_PASSWORD', 'admin5002'),
+                port=int(os.environ.get('DB_PORT', 3306))
+                # Note: 'auth_plugin' is removed here to ensure compatibility with Aiven Cloud.
+                # If your local XAMPP stops working, let me know!
             )
             return connection
         except Error as e:

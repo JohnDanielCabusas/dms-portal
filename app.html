@@ -2948,8 +2948,8 @@
     </div>
 
     <script>
-      const API_BASE_URL = "http://localhost:5000/api";
-
+// Using a relative path works on both Localhost AND Render automatically
+const API_BASE_URL = "/api";
       // Utilities
       function uid(prefix = "id") {
         return prefix + "_" + Math.random().toString(36).slice(2, 9);

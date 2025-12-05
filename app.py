@@ -21,6 +21,8 @@ from reportlab.lib.pagesizes import letter
 import pandas as pd
 from html import escape
 from cryptography.fernet import Fernet, InvalidToken
+# Add render_template to your imports
+from flask import Flask, request, jsonify, send_file, render_template
 
 # Load environment variables from .env file
 load_dotenv()
@@ -124,7 +126,12 @@ def hash_file_path(file_path):
         return None
     return encrypt_sensitive(file_path)
 
-app = Flask(__name__)
+
+
+# template_folder='.' tells Flask to look in the current directory for HTML files
+# static_folder='.' allows serving CSS/JS/Images from the root folder
+# static_url_path='' allows accessing them without /static/ prefix
+app = Flask(__name__, template_folder='.', static_folder='.', static_url_path='')
 CORS(app)
 
 # Define UPLOAD_FOLDER outside your code directory
@@ -137,6 +144,29 @@ ALLOWED_EXTENSIONS = {
     'ppt', 'pptx',
     'zip'
 }
+
+
+
+@app.route('/')
+def index():
+    return render_template('login.html')
+
+@app.route('/login')
+def login_page():
+    return render_template('login.html')
+
+@app.route('/app')
+def app_page():
+    return render_template('app.html')
+
+@app.route('/dashboard')
+def dashboard():
+    return render_template('app.html')
+
+# Ensure UPLOAD_FOLDER is defined after imports but before it's used
+
+UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'dms_uploads')
+
 
 # Add configuration for file storage
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -676,8 +706,7 @@ def upload_file():
                     smtp_server = "smtp.gmail.com"
                     smtp_port = 587
                     sender_email = "plp.dmshr@gmail.com"
-                    sender_password = "thpn ttsr pxcw zchi"
-                    
+                    sender_password = os.environ.get("MAIL_PASSWORD")                    
                     from email.mime.text import MIMEText
                     from email.mime.multipart import MIMEMultipart
                     import smtplib

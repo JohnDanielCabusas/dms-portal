@@ -1,3 +1,16 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+venv/
+.env
+
+# Database
+*.sql
+*.db
+
+# Uploads (Do not upload user files)
+uploads/
+dms_uploads/
+
+# IDE
 .vscode/

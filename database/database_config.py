@@ -9,9 +9,9 @@ class DatabaseConfig:
                 host='localhost',
                 database='db_dms',
                 user='root',
-                password='',
-                charset='utf8mb4',
-                collation='utf8mb4_unicode_ci'
+                password='admin5002',
+                port=3306,
+                auth_plugin='mysql_native_password'
             )
             return connection
         except Error as e:

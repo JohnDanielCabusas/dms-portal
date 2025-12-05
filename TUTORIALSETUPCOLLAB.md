@@ -2,5 +2,5 @@ clone the repository first either by going vscode > source control > clone repos
 > Open the cloned DMS folder in VS Code > Open terminal(View > Terminal) and type these in terminal:
 pip install -r requirements.txt
 
-For success login, type nyo muna 'to sa terminal:
+For success login, type this on the terminal:
 python app.py
